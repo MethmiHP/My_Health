@@ -181,6 +181,13 @@ import DoctorDashboard from './pages/dashboards/doctorDashboard';
 import AdminDashboard from './pages/dashboards/hospitalDashboard';
 import PatientDashboard from './pages/dashboards/patientDashboard';
 
+// Appointments
+import Specialties from './pages/appointments/Specialties';
+import Doctors from './pages/appointments/Doctors';
+import DoctorSlots from './pages/appointments/DoctorSlots';
+import ConfirmAppointment from './pages/appointments/ConfirmAppointment';
+import MyAppointments from './pages/appointments/MyAppointments';
+
 // -------- Utility pages --------
 const Unauthorized = () => (
   <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -285,6 +292,33 @@ const AppContent = () => {
         <Route path="/patient/dashboard" element={<Navigate to="/patient-dashboard" replace />} />
         <Route path="/doctor/dashboard" element={<Navigate to="/doctor-dashboard" replace />} />
         <Route path="/cashier/dashboard" element={<Navigate to="/cashier-dashboard" replace />} />
+
+        {/* Appointments (patient) */}
+<Route path="/appointments" element={
+  <ProtectedRoute roles={['patient','reception','admin']}>
+    <Specialties />
+  </ProtectedRoute>
+} />
+<Route path="/appointments/doctors" element={
+  <ProtectedRoute roles={['patient','reception','admin']}>
+    <Doctors />
+  </ProtectedRoute>
+} />
+<Route path="/appointments/doctor/:doctorId" element={
+  <ProtectedRoute roles={['patient','reception','admin']}>
+    <DoctorSlots />
+  </ProtectedRoute>
+} />
+<Route path="/appointments/confirm" element={
+  <ProtectedRoute roles={['patient','reception','admin']}>
+    <ConfirmAppointment />
+  </ProtectedRoute>
+} />
+<Route path="/appointments/my" element={
+  <ProtectedRoute roles={['patient']}>
+    <MyAppointments />
+  </ProtectedRoute>
+} />
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
