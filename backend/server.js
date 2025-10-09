@@ -1,10 +1,14 @@
+require('dotenv').config();
+if (!process.env.SECRET_KEY) {
+  console.error('❌ Missing SECRET_KEY in .env'); 
+  process.exit(1);
+}
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const router = require("./router");
 const path = require("path");
-
-require('dotenv').config();
 
 const app = express();
 

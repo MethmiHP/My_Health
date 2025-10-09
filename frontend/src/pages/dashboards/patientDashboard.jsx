@@ -10,7 +10,7 @@ export default function Home() {
       fontSize: '48px',
       fontWeight: 'bold'
     }}>
-      PAtient Dashboard
+      Patient Dashboard
     </div>
   );
 }

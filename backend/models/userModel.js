@@ -1,22 +1,21 @@
+// models/userModel.js
 const mongoose = require('mongoose');
 const Counter = require('./counterModel');
-
 const Schema = mongoose.Schema;
 
 const UserSchema = new Schema({
-  user_id: { type: Number, unique: true },                  // auto-increment (like your old project)
+  user_id:   { type: Number, unique: true }, // auto-increment
   firstName: { type: String, required: true, trim: true },
   lastName:  { type: String, required: true, trim: true },
   email:     { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password:  { type: String, required: true },              // bcrypt hash
+  password:  { type: String, required: true }, // bcrypt hash
   profilePic:{ type: String, default: '' },
-  role:      { type: String, enum: ['admin','doctor','reception','cashier','manager','patient'], default: 'patient' },
+  role:      { type: String, enum: ['admin','doctor','cashier','reception','patient'], required: true, default: 'patient' },
   hospitalId:{ type: Schema.Types.ObjectId, ref: 'Hospital', index: true }, // tenant boundary
   phone:     { type: String, default: '' },
   userStatus:{ type: String, enum: ['active', 'inactive'], default: 'active' },
   token:     { type: String, default: '' },
-  isVerified:{ type: Boolean, default: true },              // set true for admin on onboarding; you can add email verify later
-  createdAt: { type: Date, default: Date.now }
+  isVerified:{ type: Boolean, default: true },
 }, { timestamps: true });
 
 UserSchema.virtual('fullName').get(function () {
@@ -40,3 +39,4 @@ UserSchema.pre('save', async function (next) {
 });
 
 module.exports = mongoose.models.User || mongoose.model('User', UserSchema);
+

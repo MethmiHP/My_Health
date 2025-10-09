@@ -1,11 +1,14 @@
+// routes/hospitalAuth.routes.js
 const express = require('express');
 const router = express.Router();
-const { registerHospital, loginHospitalAdmin } = require('../controllers/hospitalAuth.controller');
+const { registerHospital, login, me } = require('../controllers/hospitalAuth.controller');
+const auth = require('../middleware/authMiddleware');
 
-// PUBLIC: Hospital self-registration (creates hospital + first admin)
+// Public
 router.post('/register', registerHospital);
+router.post('/login', login);
 
-// PUBLIC: Hospital admin login
-router.post('/login', loginHospitalAdmin);
+// Private
+router.get('/me', auth([]), me);
 
 module.exports = router;
