@@ -69,7 +69,7 @@ router.get('/user/:userId', auth(['patient']), async (req, res) => {
 });
 
 // Get all patients for the hospital
-router.get('/patients', auth(['admin', 'reception', 'doctor']), async (req, res) => {
+router.get('/', auth(['admin', 'reception', 'doctor']), async (req, res) => {
   try {
     const hospitalId = getHospitalId(req);
     if (!hospitalId) {
@@ -146,20 +146,54 @@ router.get('/:id', auth(['admin', 'reception', 'doctor', 'patient']), async (req
 });
 
 // Update patient profile
-router.put('/:id', auth(['admin', 'reception', 'patient']), async (req, res) => {
+router.put('/:id', auth(['admin', 'reception', 'patient', 'doctor']), async (req, res) => {
   try {
     const hospitalId = getHospitalId(req);
     const patientId = req.params.id;
 
-    // Patients can only update their own profile
-    if (req.user.role === 'patient' && req.user.sub !== patientId) {
+    // Load the target patient profile first for authorization and context
+    const existing = await PatientProfile.findOne({ _id: patientId, hospitalId });
+    if (!existing) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    // Patients can only update their own profile (match profile.userId)
+    if (req.user.role === 'patient' && String(existing.userId) !== String(req.user.sub)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const {
-      dob, gender, bloodGroup, allergies, chronicConditions, medications,
+    let {
+      dob, gender, bloodGroup, allergies, chronicConditions, familyConditions, medications, surgeries,
       heightCm, weightKg, emergencyContact, insurance, guardian, consent
-    } = req.body;
+    } = req.body || {};
+
+    // Normalize list fields if provided as comma-separated strings
+    const normalizeList = (val) =>
+      Array.isArray(val)
+        ? val
+        : typeof val === 'string'
+          ? val.split(',').map((s) => s.trim()).filter(Boolean)
+          : undefined;
+    allergies = normalizeList(allergies) ?? existing.allergies;
+    chronicConditions = normalizeList(chronicConditions) ?? existing.chronicConditions;
+    familyConditions = normalizeList(familyConditions) ?? existing.familyConditions;
+
+    // Normalize surgeries if provided
+    if (Array.isArray(surgeries)) {
+      surgeries = surgeries
+        .filter(s => s && s.name && String(s.name).trim())
+        .map(s => ({
+          type: s.type || 'surgery',
+          name: String(s.name).trim(),
+          description: s.description || undefined,
+          date: s.date ? new Date(s.date) : undefined,
+          hospital: s.hospital || undefined,
+          surgeon: s.surgeon || undefined,
+          results: s.results || undefined,
+          followUpRequired: !!s.followUpRequired,
+          followUpDate: s.followUpDate ? new Date(s.followUpDate) : undefined,
+        }));
+    }
 
     // If updating DOB, check age for guardian requirements
     if (dob) {
@@ -170,23 +204,23 @@ router.put('/:id', auth(['admin', 'reception', 'patient']), async (req, res) => 
       const dayDiff = today.getDate() - birthDate.getDate();
       if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
 
-      // If under 16, guardian details and consent are required
-      if (age < 16) {
-        if (!guardian?.name || !guardian?.relationship || !guardian?.phone) {
-          return res.status(400).json({ message: 'Guardian details are required for patients under 16' });
+      // If age <= 16, guardian details and consent are required
+      if (age <= 16) {
+        if (!guardian?.name || !guardian?.phone) {
+          return res.status(400).json({ message: 'Guardian details are required for patients age 16 or under' });
         }
         if (!consent) {
-          return res.status(400).json({ message: 'Guardian consent is required for patients under 16' });
+          return res.status(400).json({ message: 'Guardian consent is required for patients age 16 or under' });
         }
       }
     }
 
     const updateData = {
-      dob, gender, bloodGroup, allergies, chronicConditions, medications,
+      dob, gender, bloodGroup, allergies, chronicConditions, familyConditions, medications, surgeries,
       heightCm, weightKg, emergencyContact, insurance
     };
 
-    // Include guardian info if patient is under 16
+    // Include guardian info if patient is age <= 16
     if (dob) {
       const birthDate = new Date(dob);
       const today = new Date();
@@ -195,16 +229,16 @@ router.put('/:id', auth(['admin', 'reception', 'patient']), async (req, res) => 
       const dayDiff = today.getDate() - birthDate.getDate();
       if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
 
-      if (age < 16) {
+      if (age <= 16) {
         updateData.guardian = guardian;
         updateData.consent = consent;
       }
     }
 
     const patient = await PatientProfile.findOneAndUpdate(
-      { _id: patientId, hospitalId },
+      { _id: existing._id, hospitalId },
       updateData,
-      { new: true }
+      { new: true, runValidators: true }
     ).populate('userId', 'firstName lastName email phone userStatus');
 
     if (!patient) {
@@ -221,6 +255,8 @@ router.put('/:id', auth(['admin', 'reception', 'patient']), async (req, res) => 
         bloodGroup: patient.bloodGroup,
         allergies: patient.allergies,
         chronicConditions: patient.chronicConditions,
+        familyConditions: patient.familyConditions,
+        surgeries: patient.surgeries,
         medications: patient.medications,
         heightCm: patient.heightCm,
         weightKg: patient.weightKg,

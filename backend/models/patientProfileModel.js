@@ -57,11 +57,12 @@ const InsuranceSchema = new Schema({
   policyNo: String,
 }, { _id: false });
 
-// Sub-schema for guardian (for patients under 16)
+// Sub-schema for guardian (for patients age 16 or under)
 const GuardianSchema = new Schema({
   name: { type: String, required: true },
   phone: { type: String, required: true },
-  relationship: { type: String, required: true },
+  nic: { type: String },
+  relationship: { type: String },
 }, { _id: false });
 
 const PatientProfileSchema = new Schema({
@@ -71,7 +72,8 @@ const PatientProfileSchema = new Schema({
   // Personal Information
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
-  nic: { type: String, required: true, unique: true }, // National Identity Card number
+  // Patient NIC is required only if age > 16; keep unique with sparse to allow null/undefined
+  nic: { type: String, unique: true, sparse: true }, // National Identity Card number
   dob: { type: Date, required: true },
   gender: { type: String, enum: ['male','female','other'], default: 'other' },
   bloodGroup: { type: String, trim: true },

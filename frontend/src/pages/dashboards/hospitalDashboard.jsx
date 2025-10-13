@@ -420,6 +420,24 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
   const [conditions, setConditions] = useState("");
   const [medications, setMedications] = useState("");
 
+  // NIC
+  const [nic, setNic] = useState("");
+
+  // Surgeries & Procedures
+  const [surgeries, setSurgeries] = useState([
+    {
+      type: "surgery",
+      name: "",
+      description: "",
+      date: "",
+      hospital: "",
+      surgeon: "",
+      results: "",
+      followUpRequired: false,
+      followUpDate: "",
+    },
+  ]);
+
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
 
@@ -427,7 +445,7 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
   const [ins, setIns] = useState({ provider: "", policyNo: "" });
 
   // Guardian fields
-  const [guardian, setGuardian] = useState({ name: "", phone: "", consent: false });
+  const [guardian, setGuardian] = useState({ name: "", phone: "", nic: "", consent: false });
 
   const updateBase = (e) =>
     setBase((p) => ({ ...p, [e.target.name]: e.target.value }));
@@ -435,12 +453,33 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
   const updateGuardian = (e) =>
     setGuardian((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  // Surgeries handlers
+  const addSurgery = () =>
+    setSurgeries((p) => [
+      ...p,
+      {
+        type: "surgery",
+        name: "",
+        description: "",
+        date: "",
+        hospital: "",
+        surgeon: "",
+        results: "",
+        followUpRequired: false,
+        followUpDate: "",
+      },
+    ]);
+  const removeSurgery = (idx) =>
+    setSurgeries((p) => p.filter((_, i) => i !== idx));
+  const updateSurgery = (idx, field, value) =>
+    setSurgeries((p) => p.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
+
   const isUnder16 = () => {
     if (!dob) return false;
     const age = Math.floor(
       (new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000)
     );
-    return age < 16;
+    return age <= 16;
   };
 
   const submit = async (e) => {
@@ -449,14 +488,30 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
       return toast.error("Please fill required fields");
     }
 
-    if (isUnder16() && (!guardian.name || !guardian.phone || !guardian.consent)) {
-      return toast.error("Guardian details & consent are required for patients under 16");
+    const nicRegex = /^(?:\d{9}[Vv]|\d{12})$/; // 9 digits + V/v or 12 digits
+
+    // Patient NIC required only if over 16
+    if (!isUnder16() && !nic) {
+      return toast.error("NIC is required for patients over 16");
+    }
+    if (!isUnder16() && nic && !nicRegex.test(nic)) {
+      return toast.error("Invalid NIC. Use 9 digits + V (e.g., 123456789V) or 12 digits.");
+    }
+
+    if (isUnder16()) {
+      if (!guardian.name || !guardian.phone || !guardian.consent || !guardian.nic) {
+        return toast.error("Guardian name, phone, NIC and consent are required for patients ≤16");
+      }
+      if (!nicRegex.test(guardian.nic)) {
+        return toast.error("Guardian NIC invalid. Use 9 digits + V or 12 digits");
+      }
     }
 
     setLoading(true);
     try {
       const payload = {
         ...base,
+        nic: isUnder16() ? undefined : nic,
         dob: dob ? new Date(dob) : undefined,
         gender,
         bloodGroup: bloodGroup || undefined,
@@ -469,11 +524,25 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
         medications: medications
           ? medications.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
+        surgeries: surgeries
+          .filter((s) => s.name.trim())
+          .map((s) => ({
+            type: s.type || 'surgery',
+            name: s.name.trim(),
+            description: s.description?.trim() || undefined,
+            date: s.date ? new Date(s.date) : undefined,
+            hospital: s.hospital?.trim() || undefined,
+            surgeon: s.surgeon?.trim() || undefined,
+            results: s.results?.trim() || undefined,
+            followUpRequired: !!s.followUpRequired,
+            followUpDate: s.followUpDate ? new Date(s.followUpDate) : undefined,
+          })),
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         emergencyContact: ec,
         insurance: ins,
         guardian: isUnder16() ? guardian : undefined,
+        consent: isUnder16() ? !!guardian.consent : undefined,
       };
 
       const data = await postJSON(
@@ -514,6 +583,16 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
               <Field label="Phone" name="phone" value={base.phone} onChange={updateBase} icon={Phone} />
               <Field label="Password *" name="password" type="password" value={base.password} onChange={updateBase} icon={Lock} />
               <Field label="Date of Birth" type="date" value={dob} onChange={(e)=>setDob(e.target.value)} icon={Calendar} />
+              {!isUnder16() && (
+                <Field
+                  label="NIC *"
+                  value={nic}
+                  onChange={(e)=>setNic(e.target.value)}
+                  icon={IdCard}
+                  placeholder="Enter NIC (e.g., 123456789V)"
+                  maxLength={13}
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -534,42 +613,110 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
 
             <Field label="Medications (comma)" value={medications} onChange={(e)=>setMedications(e.target.value)} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TextArea
-                label="Emergency Contact (name / phone / relation)"
-                rows={2}
-                placeholder="e.g., Kamal / +94 77... / Brother"
-                value={`${ec.name}${ec.name || ec.phone || ec.relation ? " / " : ""}${ec.phone}${ec.phone || ec.relation ? " / " : ""}${ec.relation}`}
-                onChange={(e) => {
-                  const parts = e.target.value.split("/").map((p) => p.trim());
-                  setEc({
-                    name: parts[0] || "",
-                    phone: parts[1] || "",
-                    relation: parts[2] || "",
-                  });
-                }}
-              />
-              <TextArea
-                label="Insurance (provider / policyNo)"
-                rows={2}
-                placeholder="e.g., ABC / POL-1001"
-                value={`${ins.provider}${ins.provider || ins.policyNo ? " / " : ""}${ins.policyNo}`}
-                onChange={(e) => {
-                  const parts = e.target.value.split("/").map((p) => p.trim());
-                  setIns({
-                    provider: parts[0] || "",
-                    policyNo: parts[1] || "",
-                  });
-                }}
-              />
+            {/* Emergency Contact - separate fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Field label="Emergency Contact Name" value={ec.name} onChange={(e)=>setEc((p)=>({...p, name: e.target.value}))} icon={User} />
+              <Field label="Emergency Contact Phone" value={ec.phone} onChange={(e)=>setEc((p)=>({...p, phone: e.target.value}))} icon={Phone} />
+              <Field label="Emergency Contact Relation" value={ec.relation} onChange={(e)=>setEc((p)=>({...p, relation: e.target.value}))} />
             </div>
 
-            {/* Guardian section (only if under 16) */}
+            {/* Insurance - separate fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Insurance Provider" value={ins.provider} onChange={(e)=>setIns((p)=>({...p, provider: e.target.value}))} />
+              <Field label="Policy Number" value={ins.policyNo} onChange={(e)=>setIns((p)=>({...p, policyNo: e.target.value}))} />
+            </div>
+
+            {/* Surgeries & Procedures */}
+            <div className="border border-teal-200 rounded-xl p-4 bg-white space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-teal-900">Current Surgeries & Procedures</span>
+                <button type="button" onClick={addSurgery} className="inline-flex items-center gap-1 text-sm text-teal-700 hover:text-teal-800">
+                  <Plus className="h-4 w-4" /> Add
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {surgeries.map((s, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-2">
+                    <select
+                      className="col-span-3 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      value={s.type}
+                      onChange={(e) => updateSurgery(idx, "type", e.target.value)}
+                    >
+                      <option value="surgery">Surgery</option>
+                      <option value="scan">Scan</option>
+                      <option value="procedure">Procedure</option>
+                      <option value="treatment">Treatment</option>
+                    </select>
+                    <input
+                      className="col-span-4 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      placeholder="Name"
+                      value={s.name}
+                      onChange={(e) => updateSurgery(idx, "name", e.target.value)}
+                    />
+                    <input
+                      className="col-span-3 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      type="date"
+                      value={s.date}
+                      onChange={(e) => updateSurgery(idx, "date", e.target.value)}
+                    />
+                    <button type="button" onClick={() => removeSurgery(idx)} className="col-span-2 inline-flex items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <input
+                      className="col-span-4 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      placeholder="Hospital"
+                      value={s.hospital}
+                      onChange={(e) => updateSurgery(idx, "hospital", e.target.value)}
+                    />
+                    <input
+                      className="col-span-4 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      placeholder="Surgeon / Performed by"
+                      value={s.surgeon}
+                      onChange={(e) => updateSurgery(idx, "surgeon", e.target.value)}
+                    />
+                    <input
+                      className="col-span-4 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      placeholder={s.type === 'scan' ? 'Results' : 'Description'}
+                      value={s.description}
+                      onChange={(e) => updateSurgery(idx, "description", e.target.value)}
+                    />
+                    <input
+                      className="col-span-6 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      placeholder="Results (if applicable)"
+                      value={s.results}
+                      onChange={(e) => updateSurgery(idx, "results", e.target.value)}
+                    />
+                    <div className="col-span-3 flex items-center gap-2">
+                      <input
+                        id={`fu-${idx}`}
+                        type="checkbox"
+                        className="accent-teal-600 h-4 w-4"
+                        checked={s.followUpRequired}
+                        onChange={(e) => updateSurgery(idx, "followUpRequired", e.target.checked)}
+                      />
+                      <label htmlFor={`fu-${idx}`} className="text-sm text-teal-900">Follow-up required</label>
+                    </div>
+                    <input
+                      className="col-span-3 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                      type="date"
+                      value={s.followUpDate}
+                      onChange={(e) => updateSurgery(idx, "followUpDate", e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Guardian section (only if age <= 16) */}
             {isUnder16() && (
               <div className="border border-teal-200 rounded-xl p-4 bg-teal-50 space-y-4">
-                <h3 className="font-semibold text-teal-900">Guardian Details (Required for patients under 16)</h3>
-                <Field label="Guardian Name *" name="name" value={guardian.name} onChange={updateGuardian} icon={User} />
-                <Field label="Guardian Phone *" name="phone" value={guardian.phone} onChange={updateGuardian} icon={Phone} />
+                <h3 className="font-semibold text-teal-900">Guardian Details (Required for patients age 16 or under)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Guardian Name *" name="name" value={guardian.name} onChange={updateGuardian} icon={User} />
+                  <Field label="Guardian Phone *" name="phone" value={guardian.phone} onChange={updateGuardian} icon={Phone} />
+                  <Field label="Guardian NIC *" name="nic" value={guardian.nic} onChange={updateGuardian} icon={IdCard} placeholder="e.g., 123456789V or 12 digits" maxLength={13} />
+                </div>
                 <Checkbox label="Consent Provided *" name="consent" checked={guardian.consent} onChange={(e) => setGuardian((p) => ({ ...p, consent: e.target.checked }))} />
               </div>
             )}

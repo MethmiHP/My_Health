@@ -353,18 +353,15 @@ exports.createPatient = async (req, res) => {
       dob, gender, bloodGroup, allergies = [], chronicConditions = [], familyConditions = [], medications = [], surgeries = [],
       heightCm, weightKg,
       emergencyContact = {}, insurance = {},
-      guardian = {}, consent = false, // added guardian & consent fields
+      guardian = {}, consent = false,
     } = req.body || {};
 
-    if (!firstName || !lastName || !email || !password || !dob || !nic) {
+    if (!firstName || !lastName || !email || !password || !dob) {
       return res.status(400).json({ message: 'Missing required user fields' });
     }
 
-    // Validate NIC format (10-12 digits with optional V)
-    const nicRegex = /^[0-9]{10,12}[V]?$/i;
-    if (!nicRegex.test(nic)) {
-      return res.status(400).json({ message: 'NIC must be 10-12 digits with optional V suffix (e.g., 1234567890V)' });
-    }
+    // Validate NIC format helper
+    const nicRegex = /^(?:\d{9}[Vv]|\d{12})$/;
 
     // Check age
     const birthDate = new Date(dob);
@@ -374,13 +371,22 @@ exports.createPatient = async (req, res) => {
     const dayDiff = today.getDate() - birthDate.getDate();
     if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
 
-    // If under 16, guardian details and consent are required
-    if (age < 16) {
-      if (!guardian.name || !guardian.relationship || !guardian.phone) {
-        return res.status(400).json({ message: 'Guardian details are required for patients under 16' });
+    // Conditional NIC requirements
+    if (age > 16) {
+      if (!nic) return res.status(400).json({ message: 'NIC is required for patients over 16' });
+      if (!nicRegex.test(nic)) {
+        return res.status(400).json({ message: 'Invalid NIC. Use 9 digits + V (e.g., 123456789V) or 12 digits.' });
+      }
+    } else {
+      // age <= 16
+      if (!guardian || !guardian.name || !guardian.phone || !guardian.nic) {
+        return res.status(400).json({ message: 'Guardian name, phone and NIC are required for patients age 16 or under' });
+      }
+      if (!nicRegex.test(guardian.nic)) {
+        return res.status(400).json({ message: 'Guardian NIC invalid. Use 9 digits + V or 12 digits' });
       }
       if (!consent) {
-        return res.status(400).json({ message: 'Guardian consent is required for patients under 16' });
+        return res.status(400).json({ message: 'Guardian consent is required for patients age 16 or under' });
       }
     }
 
@@ -404,7 +410,7 @@ exports.createPatient = async (req, res) => {
       hospitalId,
       firstName,
       lastName,
-      nic,
+      nic: age > 16 ? nic : undefined,
       dob,
       gender,
       bloodGroup,
@@ -421,7 +427,7 @@ exports.createPatient = async (req, res) => {
     };
 
     // Include guardian info if patient is under 16
-    if (age < 16) {
+    if (age <= 16) {
       patientData.guardian = guardian;
       patientData.consent = consent;
     }

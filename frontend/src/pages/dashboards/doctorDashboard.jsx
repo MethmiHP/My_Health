@@ -157,7 +157,7 @@ export default function DoctorDashboard() {
       console.log('Doctor Dashboard - Response:', response);
       
       // Update the scanned patient data with the response from the server
-      if (scannedPatient && scannedPatient.user?._id === patientId) {
+      if (scannedPatient && (scannedPatient._id === patientId || scannedPatient.user?._id === patientId)) {
         setScannedPatient({
           ...scannedPatient,
           ...response.patient // Use the updated patient data from the server response

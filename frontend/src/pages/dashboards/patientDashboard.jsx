@@ -186,7 +186,7 @@ export default function PatientDashboard() {
       console.log('Profile data:', profileFormData);
       
       const response = await putJSON(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/patients/${user._id}`,
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/patients/${patientProfile._id}`,
         headers,
         profileFormData
       );

@@ -83,7 +83,8 @@ const PatientDetails = ({ patient, scannedAt, onClose, userRole, onUpdatePatient
         console.log('PatientDetails - Patient User ID:', patient.userId);
         console.log('PatientDetails - Patient user:', patient.user);
         console.log('PatientDetails - Patient user ID:', patient.user?._id);
-        const response = await onUpdatePatient(patient.user?._id, { medications });
+        const patientProfileId = patient?._id || patient.user?._id;
+        const response = await onUpdatePatient(patientProfileId, { medications });
         console.log('Update response:', response);
         toast.success('Medications updated successfully');
         setIsEditingMedications(false);
@@ -129,7 +130,8 @@ const PatientDetails = ({ patient, scannedAt, onClose, userRole, onUpdatePatient
     setIsUpdating(true);
     try {
       if (onUpdatePatient) {
-        const response = await onUpdatePatient(patient.user?._id, { surgeries });
+        const patientProfileId = patient?._id || patient.user?._id;
+        const response = await onUpdatePatient(patientProfileId, { surgeries });
         toast.success('Surgeries updated successfully');
         setIsEditingSurgeries(false);
       }
