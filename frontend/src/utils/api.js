@@ -25,3 +25,10 @@ export async function postJSON(url, headers, body) {
   if (!res.ok) throw new Error(data?.message || 'Request failed');
   return data;
 }
+
+export async function putJSON(url, headers, body) {
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.message || 'Request failed');
+  return data;
+}

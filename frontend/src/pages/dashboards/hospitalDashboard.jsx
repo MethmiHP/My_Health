@@ -1,5 +1,5 @@
 // src/pages/dashboards/hospitalDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import {
   UserPlus,
@@ -22,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { getJSON } from "../../utils/api";
 
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -397,6 +398,8 @@ const CreateDoctorModal = ({ open, onClose, onCreated }) => {
   );
 };
 
+
+
 /* ----------------------- PATIENT MODAL ----------------------- */
 const CreatePatientModal = ({ open, onClose, onCreated }) => {
   const headers = useAuthHeader();
@@ -410,13 +413,29 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
     password: "",
   });
 
+  const [nic, setNic] = useState("");
+
+  // Format NIC input (auto-uppercase V and limit length)
+  const handleNicChange = (e) => {
+    let value = e.target.value.toUpperCase();
+    // Remove any non-alphanumeric characters except V
+    value = value.replace(/[^0-9V]/g, '');
+    // Limit to 13 characters (12 digits + V)
+    if (value.length <= 13) {
+      setNic(value);
+    }
+  };
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("other");
   const [bloodGroup, setBloodGroup] = useState("");
 
   const [allergies, setAllergies] = useState("");
   const [conditions, setConditions] = useState("");
+  const [familyConditions, setFamilyConditions] = useState("");
   const [medications, setMedications] = useState("");
+  const [surgeries, setSurgeries] = useState([
+    { type: "surgery", name: "", description: "", date: "", hospital: "", surgeon: "", results: "", followUpRequired: false, followUpDate: "" }
+  ]);
 
   const [heightCm, setHeightCm] = useState("");
   const [weightKg, setWeightKg] = useState("");
@@ -424,18 +443,54 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
   const [ec, setEc] = useState({ name: "", phone: "", relation: "" });
   const [ins, setIns] = useState({ provider: "", policyNo: "" });
 
+  // Guardian fields
+  const [guardian, setGuardian] = useState({ name: "", phone: "", relationship: "" });
+  const [consent, setConsent] = useState(false);
+
   const updateBase = (e) =>
     setBase((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  const updateGuardian = (e) =>
+    setGuardian((p) => ({ ...p, [e.target.name]: e.target.value }));
+
+  const addSurgery = () =>
+    setSurgeries((p) => [...p, { type: "surgery", name: "", description: "", date: "", hospital: "", surgeon: "", results: "", followUpRequired: false, followUpDate: "" }]);
+  const removeSurgery = (idx) =>
+    setSurgeries((p) => p.filter((_, i) => i !== idx));
+  const updateSurgery = (idx, field, value) =>
+    setSurgeries((p) =>
+      p.map((s, i) => (i === idx ? { ...s, [field]: value } : s))
+    );
+
+  const isUnder16 = () => {
+    if (!dob) return false;
+    const age = Math.floor(
+      (new Date() - new Date(dob)) / (365.25 * 24 * 60 * 60 * 1000)
+    );
+    return age < 16;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
-    if (!base.firstName || !base.lastName || !base.email || !base.password) {
+    if (!base.firstName || !base.lastName || !base.email || !base.password || !nic) {
       return toast.error("Please fill required fields");
     }
+
+    // Validate NIC format (10-12 digits with optional V)
+    const nicRegex = /^[0-9]{10,12}[V]?$/i;
+    if (!nicRegex.test(nic)) {
+      return toast.error("NIC must be 10-12 digits with optional 'V' suffix (e.g., 1234567890V)");
+    }
+
+    if (isUnder16() && (!guardian.name || !guardian.phone || !guardian.relationship || !consent)) {
+      return toast.error("Guardian details & consent are required for patients under 16");
+    }
+
     setLoading(true);
     try {
       const payload = {
         ...base,
+        nic,
         dob: dob ? new Date(dob) : undefined,
         gender,
         bloodGroup: bloodGroup || undefined,
@@ -445,13 +500,31 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
         chronicConditions: conditions
           ? conditions.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
+        familyConditions: familyConditions
+          ? familyConditions.split(",").map((s) => s.trim()).filter(Boolean)
+          : [],
         medications: medications
           ? medications.split(",").map((s) => s.trim()).filter(Boolean)
           : [],
+        surgeries: surgeries
+          .filter((s) => s.name.trim())
+          .map((s) => ({
+            type: s.type || 'surgery',
+            name: s.name.trim(),
+            description: s.description.trim() || undefined,
+            date: s.date ? new Date(s.date) : undefined,
+            hospital: s.hospital.trim() || undefined,
+            surgeon: s.surgeon.trim() || undefined,
+            results: s.results.trim() || undefined,
+            followUpRequired: s.followUpRequired || false,
+            followUpDate: s.followUpDate ? new Date(s.followUpDate) : undefined,
+          })),
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         emergencyContact: ec,
         insurance: ins,
+        guardian: isUnder16() ? guardian : undefined,
+        consent: isUnder16() ? consent : undefined,
       };
 
       const data = await postJSON(
@@ -472,7 +545,6 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
 
   if (!open) return null;
 
-  // Patient: overlay scroll too (consistent UX)
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
       <div className="min-h-full flex items-start justify-center p-4">
@@ -485,13 +557,21 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
           </div>
 
           <form onSubmit={submit} className="p-6 space-y-6">
-            {/* Base */}
+            {/* Base fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="First name *" name="firstName" value={base.firstName} onChange={updateBase} icon={User} />
               <Field label="Last name *" name="lastName" value={base.lastName} onChange={updateBase} icon={User} />
               <Field label="Email *" name="email" type="email" value={base.email} onChange={updateBase} icon={Mail} />
               <Field label="Phone" name="phone" value={base.phone} onChange={updateBase} icon={Phone} />
               <Field label="Password *" name="password" type="password" value={base.password} onChange={updateBase} icon={Lock} />
+              <Field 
+                label="NIC *" 
+                value={nic} 
+                onChange={handleNicChange} 
+                icon={User} 
+                placeholder="Enter NIC (e.g., 1234567890V)" 
+                maxLength={13}
+              />
               <Field label="Date of Birth" type="date" value={dob} onChange={(e)=>setDob(e.target.value)} icon={Calendar} />
             </div>
 
@@ -511,37 +591,183 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
               <Field label="Conditions (comma)" value={conditions} onChange={(e)=>setConditions(e.target.value)} />
             </div>
 
+            <Field label="Family Medical Conditions (comma)" value={familyConditions} onChange={(e)=>setFamilyConditions(e.target.value)} placeholder="e.g., Heart disease, Diabetes, Cancer (in family members)" />
+
             <Field label="Medications (comma)" value={medications} onChange={(e)=>setMedications(e.target.value)} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TextArea
-                label="Emergency Contact (name / phone / relation)"
-                rows={2}
-                placeholder="e.g., Kamal / +94 77... / Brother"
-                value={`${ec.name}${ec.name || ec.phone || ec.relation ? " / " : ""}${ec.phone}${ec.phone || ec.relation ? " / " : ""}${ec.relation}`}
-                onChange={(e) => {
-                  const parts = e.target.value.split("/").map((p) => p.trim());
-                  setEc({
-                    name: parts[0] || "",
-                    phone: parts[1] || "",
-                    relation: parts[2] || "",
-                  });
-                }}
-              />
-              <TextArea
-                label="Insurance (provider / policyNo)"
-                rows={2}
-                placeholder="e.g., ABC / POL-1001"
-                value={`${ins.provider}${ins.provider || ins.policyNo ? " / " : ""}${ins.policyNo}`}
-                onChange={(e) => {
-                  const parts = e.target.value.split("/").map((p) => p.trim());
-                  setIns({
-                    provider: parts[0] || "",
-                    policyNo: parts[1] || "",
-                  });
-                }}
-              />
+            {/* Surgeries & Procedures */}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-teal-900">Surgeries & Procedures</span>
+                <button type="button" onClick={addSurgery} className="inline-flex items-center gap-1 text-sm text-teal-700 hover:text-teal-800">
+                  <Plus className="h-4 w-4" /> Add Entry
+                </button>
+              </div>
+              <div className="mt-2 space-y-3">
+                {surgeries.map((surgery, idx) => (
+                  <div key={idx} className="border border-teal-200 rounded-xl p-4 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.type}
+                        onChange={(e) => updateSurgery(idx, "type", e.target.value)}
+                      >
+                        <option value="surgery">Surgery</option>
+                        <option value="scan">Scan/Imaging</option>
+                        <option value="procedure">Procedure</option>
+                        <option value="treatment">Treatment</option>
+                      </select>
+                      <input
+                        placeholder={`${surgery.type === 'scan' ? 'Scan Type' : surgery.type === 'procedure' ? 'Procedure Name' : 'Surgery Name'} *`}
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.name}
+                        onChange={(e) => updateSurgery(idx, "name", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        placeholder="Date"
+                        type="date"
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.date}
+                        onChange={(e) => updateSurgery(idx, "date", e.target.value)}
+                      />
+                      <input
+                        placeholder="Hospital/Clinic"
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.hospital}
+                        onChange={(e) => updateSurgery(idx, "hospital", e.target.value)}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        placeholder={surgery.type === 'scan' ? 'Radiologist' : 'Surgeon/Doctor'}
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.surgeon}
+                        onChange={(e) => updateSurgery(idx, "surgeon", e.target.value)}
+                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={surgery.followUpRequired}
+                          onChange={(e) => updateSurgery(idx, "followUpRequired", e.target.checked)}
+                          className="accent-teal-600 h-4 w-4"
+                        />
+                        <label className="text-sm text-teal-900">Follow-up required</label>
+                      </div>
+                    </div>
+                    {surgery.followUpRequired && (
+                      <input
+                        placeholder="Follow-up Date"
+                        type="date"
+                        className="rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.followUpDate}
+                        onChange={(e) => updateSurgery(idx, "followUpDate", e.target.value)}
+                      />
+                    )}
+                    <div className="flex gap-2">
+                      <textarea
+                        placeholder={surgery.type === 'scan' ? 'Scan Results/Findings' : 'Description'}
+                        rows={2}
+                        className="flex-1 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.description}
+                        onChange={(e) => updateSurgery(idx, "description", e.target.value)}
+                      />
+                      <textarea
+                        placeholder={surgery.type === 'scan' ? 'Additional Notes' : 'Results/Outcome'}
+                        rows={2}
+                        className="flex-1 rounded-xl border border-teal-200 px-3 py-2 text-sm"
+                        value={surgery.results}
+                        onChange={(e) => updateSurgery(idx, "results", e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSurgery(idx)}
+                        className="inline-flex items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50 px-3 py-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-teal-900 mb-1">
+                  Emergency Contact Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Kamal"
+                  className="rounded-xl border border-teal-200 px-3 py-2 text-sm w-full"
+                  value={ec.name}
+                  onChange={(e) => setEc({ ...ec, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-teal-900 mb-1">
+                  Emergency Contact Phone
+                </label>
+                <input
+                  type="tel"
+                  placeholder="e.g., +94 77 123 4567"
+                  className="rounded-xl border border-teal-200 px-3 py-2 text-sm w-full"
+                  value={ec.phone}
+                  onChange={(e) => setEc({ ...ec, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-teal-900 mb-1">
+                  Emergency Contact Relation
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Brother, Father, Mother"
+                  className="rounded-xl border border-teal-200 px-3 py-2 text-sm w-full"
+                  value={ec.relation}
+                  onChange={(e) => setEc({ ...ec, relation: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-teal-900 mb-1">
+                  Insurance Provider
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., ABC Insurance"
+                  className="rounded-xl border border-teal-200 px-3 py-2 text-sm w-full"
+                  value={ins.provider}
+                  onChange={(e) => setIns({ ...ins, provider: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-teal-900 mb-1">
+                  Policy Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., POL-1001"
+                  className="rounded-xl border border-teal-200 px-3 py-2 text-sm w-full"
+                  value={ins.policyNo}
+                  onChange={(e) => setIns({ ...ins, policyNo: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Guardian section (only if under 16) */}
+            {isUnder16() && (
+              <div className="border border-teal-200 rounded-xl p-4 bg-teal-50 space-y-4">
+                <h3 className="font-semibold text-teal-900">Guardian Details (Required for patients under 16)</h3>
+                <Field label="Guardian Name *" name="name" value={guardian.name} onChange={updateGuardian} icon={User} />
+                <Field label="Guardian Phone *" name="phone" value={guardian.phone} onChange={updateGuardian} icon={Phone} />
+                <Field label="Relationship to Patient *" name="relationship" value={guardian.relationship} onChange={updateGuardian} icon={User} />
+                <Checkbox label="Consent Provided *" name="consent" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              </div>
+            )}
 
             <div className="flex items-center justify-end gap-3">
               <button type="button" onClick={onClose} className="rounded-xl border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50">
@@ -563,6 +789,173 @@ const CreatePatientModal = ({ open, onClose, onCreated }) => {
     </div>
   );
 };
+
+// /* ----------------------- PATIENT MODAL ----------------------- */
+// const CreatePatientModal = ({ open, onClose, onCreated }) => {
+//   const headers = useAuthHeader();
+//   const [loading, setLoading] = useState(false);
+
+//   const [base, setBase] = useState({
+//     firstName: "",
+//     lastName: "",
+//     email: "",
+//     phone: "",
+//     password: "",
+//   });
+
+//   const [dob, setDob] = useState("");
+//   const [gender, setGender] = useState("other");
+//   const [bloodGroup, setBloodGroup] = useState("");
+
+//   const [allergies, setAllergies] = useState("");
+//   const [conditions, setConditions] = useState("");
+//   const [medications, setMedications] = useState("");
+
+//   const [heightCm, setHeightCm] = useState("");
+//   const [weightKg, setWeightKg] = useState("");
+
+//   const [ec, setEc] = useState({ name: "", phone: "", relation: "" });
+//   const [ins, setIns] = useState({ provider: "", policyNo: "" });
+
+//   const updateBase = (e) =>
+//     setBase((p) => ({ ...p, [e.target.name]: e.target.value }));
+
+//   const submit = async (e) => {
+//     e.preventDefault();
+//     if (!base.firstName || !base.lastName || !base.email || !base.password) {
+//       return toast.error("Please fill required fields");
+//     }
+//     setLoading(true);
+//     try {
+//       const payload = {
+//         ...base,
+//         dob: dob ? new Date(dob) : undefined,
+//         gender,
+//         bloodGroup: bloodGroup || undefined,
+//         allergies: allergies
+//           ? allergies.split(",").map((s) => s.trim()).filter(Boolean)
+//           : [],
+//         chronicConditions: conditions
+//           ? conditions.split(",").map((s) => s.trim()).filter(Boolean)
+//           : [],
+//         medications: medications
+//           ? medications.split(",").map((s) => s.trim()).filter(Boolean)
+//           : [],
+//         heightCm: heightCm ? Number(heightCm) : undefined,
+//         weightKg: weightKg ? Number(weightKg) : undefined,
+//         emergencyContact: ec,
+//         insurance: ins,
+//       };
+
+//       const data = await postJSON(
+//         `${API}/api/hospital/users/patient`,
+//         headers,
+//         payload
+//       );
+//       toast.success("Patient created");
+//       toast.info(`Barcode: ${data?.profile?.barcode || "generated"}`);
+//       onCreated?.(data);
+//       onClose();
+//     } catch (err) {
+//       toast.error(err.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   if (!open) return null;
+
+//   // Patient: overlay scroll too (consistent UX)
+//   return (
+//     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
+//       <div className="min-h-full flex items-start justify-center p-4">
+//         <div className="w-full max-w-3xl rounded-2xl bg-white border border-teal-100 shadow-xl">
+//           <div className="p-6 border-b border-teal-100">
+//             <h2 className="text-xl font-bold text-teal-900">Add Patient</h2>
+//             <p className="text-sm text-teal-900/70">
+//               Register a patient. A barcode will be generated automatically.
+//             </p>
+//           </div>
+
+//           <form onSubmit={submit} className="p-6 space-y-6">
+//             {/* Base */}
+//             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//               <Field label="First name *" name="firstName" value={base.firstName} onChange={updateBase} icon={User} />
+//               <Field label="Last name *" name="lastName" value={base.lastName} onChange={updateBase} icon={User} />
+//               <Field label="Email *" name="email" type="email" value={base.email} onChange={updateBase} icon={Mail} />
+//               <Field label="Phone" name="phone" value={base.phone} onChange={updateBase} icon={Phone} />
+//               <Field label="Password *" name="password" type="password" value={base.password} onChange={updateBase} icon={Lock} />
+//               <Field label="Date of Birth" type="date" value={dob} onChange={(e)=>setDob(e.target.value)} icon={Calendar} />
+//             </div>
+
+//             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+//               <Select label="Gender" value={gender} onChange={(e)=>setGender(e.target.value)}>
+//                 <option value="other">Other</option>
+//                 <option value="male">Male</option>
+//                 <option value="female">Female</option>
+//               </Select>
+//               <Field label="Blood Group" value={bloodGroup} onChange={(e)=>setBloodGroup(e.target.value)} />
+//               <Field label="Height (cm)" type="number" value={heightCm} onChange={(e)=>setHeightCm(e.target.value)} />
+//             </div>
+
+//             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+//               <Field label="Weight (kg)" type="number" value={weightKg} onChange={(e)=>setWeightKg(e.target.value)} />
+//               <Field label="Allergies (comma)" value={allergies} onChange={(e)=>setAllergies(e.target.value)} />
+//               <Field label="Conditions (comma)" value={conditions} onChange={(e)=>setConditions(e.target.value)} />
+//             </div>
+
+//             <Field label="Medications (comma)" value={medications} onChange={(e)=>setMedications(e.target.value)} />
+
+//             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//               <TextArea
+//                 label="Emergency Contact (name / phone / relation)"
+//                 rows={2}
+//                 placeholder="e.g., Kamal / +94 77... / Brother"
+//                 value={`${ec.name}${ec.name || ec.phone || ec.relation ? " / " : ""}${ec.phone}${ec.phone || ec.relation ? " / " : ""}${ec.relation}`}
+//                 onChange={(e) => {
+//                   const parts = e.target.value.split("/").map((p) => p.trim());
+//                   setEc({
+//                     name: parts[0] || "",
+//                     phone: parts[1] || "",
+//                     relation: parts[2] || "",
+//                   });
+//                 }}
+//               />
+//               <TextArea
+//                 label="Insurance (provider / policyNo)"
+//                 rows={2}
+//                 placeholder="e.g., ABC / POL-1001"
+//                 value={`${ins.provider}${ins.provider || ins.policyNo ? " / " : ""}${ins.policyNo}`}
+//                 onChange={(e) => {
+//                   const parts = e.target.value.split("/").map((p) => p.trim());
+//                   setIns({
+//                     provider: parts[0] || "",
+//                     policyNo: parts[1] || "",
+//                   });
+//                 }}
+//               />
+//             </div>
+
+//             <div className="flex items-center justify-end gap-3">
+//               <button type="button" onClick={onClose} className="rounded-xl border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-800 hover:bg-teal-50">
+//                 Cancel
+//               </button>
+//               <button
+//                 type="submit"
+//                 disabled={loading}
+//                 className={`rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 focus:ring-2 focus:ring-teal-400 ${
+//                   loading ? "opacity-60 cursor-not-allowed" : ""
+//                 }`}
+//               >
+//                 {loading ? "Creating…" : "Create Patient"}
+//               </button>
+//             </div>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
 
 /* ----------------------- CASHIER MODAL ----------------------- */
 const CreateCashierModal = ({ open, onClose, onCreated }) => {
@@ -674,6 +1067,93 @@ const CreateCashierModal = ({ open, onClose, onCreated }) => {
   );
 };
 
+/* ----------------------- PATIENT LIST COMPONENT ----------------------- */
+const PatientList = () => {
+  const headers = useAuthHeader();
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const loadPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await getJSON(`${API}/api/patients`, headers);
+      setPatients(data.patients || []);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const filteredPatients = patients.filter(patient => {
+    const fullName = `${patient.user?.firstName || ''} ${patient.user?.lastName || ''}`.toLowerCase();
+    return fullName.includes(searchTerm.toLowerCase()) || 
+           patient.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+  });
+
+  return (
+    <div className="rounded-2xl border border-teal-100 bg-white p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-teal-900">Patient List</h3>
+        <button
+          onClick={loadPatients}
+          className="text-sm text-teal-600 hover:text-teal-700"
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search patients by name or barcode..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full rounded-lg border border-teal-200 px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-teal-600">Loading patients...</div>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {filteredPatients.length === 0 ? (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              {searchTerm ? 'No patients found matching your search.' : 'No patients registered yet.'}
+            </div>
+          ) : (
+            filteredPatients.map((patient) => (
+              <div key={patient._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">
+                    {patient.user?.firstName} {patient.user?.lastName}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {patient.barcode} • {patient.user?.email}
+                  </div>
+                  {patient.guardian && (
+                    <div className="text-xs text-blue-600">
+                      Guardian: {patient.guardian.name} ({patient.guardian.relationship})
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-gray-400">
+                  {new Date(patient.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ----------------------- DASHBOARD ----------------------- */
 export default function HospitalDashboard() {
   const [open, setOpen] = useState(null); // 'doctor' | 'patient' | 'cashier' | null
@@ -723,6 +1203,11 @@ export default function HospitalDashboard() {
           />
         </div>
 
+        {/* Patient List */}
+        <div className="mt-10">
+          <PatientList />
+        </div>
+
         {/* Helpful cards */}
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-2xl border border-teal-100 bg-white p-6">
@@ -770,3 +1255,325 @@ export default function HospitalDashboard() {
     </main>
   );
 }
+
+
+
+// // src/pages/dashboards/hospitalDashboard.jsx
+// import React, { useMemo, useState } from "react";
+// import { toast } from "react-toastify";
+// import {
+//   UserPlus,
+//   Stethoscope,
+//   Users,
+//   ShieldCheck,
+//   Mail,
+//   Phone,
+//   Lock,
+//   User,
+//   DollarSign,
+//   IdCard,
+//   BookOpen,
+//   Calendar,
+//   Clock,
+//   Building2,
+//   Activity,
+//   ChevronDown,
+//   Plus,
+//   Trash2,
+// } from "lucide-react";
+// import { useAuth } from "../../contexts/AuthContext";
+
+// const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+// /* ----------------------- UI PRIMITIVES ----------------------- */
+// const CardButton = ({ icon: Icon, title, desc, onClick }) => (
+//   <button
+//     onClick={onClick}
+//     className="group rounded-2xl border border-teal-100 bg-white p-6 text-left shadow-sm hover:shadow-md transition-all hover:-translate-y-0.5"
+//   >
+//     <div className="flex items-center gap-3">
+//       <div className="rounded-xl bg-teal-50 p-3">
+//         <Icon className="h-6 w-6 text-teal-700" />
+//       </div>
+//       <div>
+//         <h3 className="text-lg font-semibold text-teal-900">{title}</h3>
+//         <p className="text-sm text-teal-900/70">{desc}</p>
+//       </div>
+//     </div>
+//   </button>
+// );
+
+// const Field = ({ label, icon: Icon, className = "", ...props }) => (
+//   <label className={`block ${className}`}>
+//     <span className="block text-sm font-medium text-teal-900 mb-1">{label}</span>
+//     <div className="relative">
+//       {Icon && (
+//         <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+//           <Icon className="h-5 w-5 text-teal-400" />
+//         </span>
+//       )}
+//       <input
+//         {...props}
+//         className={`w-full rounded-xl border border-teal-200 bg-white ${
+//           Icon ? "pl-10" : "pl-4"
+//         } pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400`}
+//       />
+//     </div>
+//   </label>
+// );
+
+// const Select = ({ label, icon: Icon, className = "", children, ...props }) => (
+//   <label className={`block ${className}`}>
+//     <span className="block text-sm font-medium text-teal-900 mb-1">{label}</span>
+//     <div className="relative">
+//       {Icon && (
+//         <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+//           <Icon className="h-5 w-5 text-teal-400" />
+//         </span>
+//       )}
+//       <select
+//         {...props}
+//         className={`w-full appearance-none rounded-xl border border-teal-200 bg-white ${
+//           Icon ? "pl-10" : "pl-4"
+//         } pr-10 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400`}
+//       >
+//         {children}
+//       </select>
+//       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-teal-500 pointer-events-none" />
+//     </div>
+//   </label>
+// );
+
+// const TextArea = ({ label, className = "", ...props }) => (
+//   <label className={`block ${className}`}>
+//     <span className="block text-sm font-medium text-teal-900 mb-1">{label}</span>
+//     <textarea
+//       {...props}
+//       className="w-full rounded-xl border border-teal-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+//     />
+//   </label>
+// );
+
+// const Checkbox = ({ label, ...props }) => (
+//   <label className="inline-flex items-center gap-2 text-sm text-teal-900">
+//     <input type="checkbox" className="accent-teal-600 h-4 w-4" {...props} />
+//     <span>{label}</span>
+//   </label>
+// );
+
+// /* ----------------------- HELPERS ----------------------- */
+// const useAuthHeader = () => {
+//   const { token } = useAuth();
+//   const clean = useMemo(() => (token ? String(token).replace(/^"|"$/g, "") : ""), [token]);
+//   return useMemo(
+//     () =>
+//       clean
+//         ? { "Content-Type": "application/json", Authorization: `Bearer ${clean}` }
+//         : { "Content-Type": "application/json" },
+//     [clean]
+//   );
+// };
+
+// async function postJSON(url, headers, body) {
+//   const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+//   const data = await res.json().catch(() => ({}));
+//   if (!res.ok) throw new Error(data?.message || (res.status === 401 ? "Invalid or expired token" : "Request failed"));
+//   return data;
+// }
+
+// /* ----------------------- DOCTOR MODAL ----------------------- */
+// const CreateDoctorModal = ({ open, onClose, onCreated }) => {
+//   const headers = useAuthHeader();
+//   const [loading, setLoading] = useState(false);
+
+//   const [base, setBase] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "" });
+//   const [licenseNumber, setLicenseNumber] = useState("");
+//   const [specialties, setSpecialties] = useState(""); 
+//   const [qualifications, setQualifications] = useState([{ degree: "", institution: "", year: "" }]);
+//   const [availability, setAvailability] = useState([{ day: 1, start: "09:00", end: "12:00" }]);
+//   const [consultationFee, setConsultationFee] = useState("");
+//   const [roomNo, setRoomNo] = useState("");
+
+//   const updateBase = (e) => setBase((p) => ({ ...p, [e.target.name]: e.target.value }));
+//   const addQualification = () => setQualifications((p) => [...p, { degree: "", institution: "", year: "" }]);
+//   const removeQualification = (idx) => setQualifications((p) => p.filter((_, i) => i !== idx));
+//   const updateQualification = (idx, field, value) =>
+//     setQualifications((p) => p.map((q, i) => (i === idx ? { ...q, [field]: value } : q)));
+//   const addSlot = () => setAvailability((p) => [...p, { day: 1, start: "09:00", end: "12:00" }]);
+//   const removeSlot = (idx) => setAvailability((p) => p.filter((_, i) => i !== idx));
+//   const updateSlot = (idx, field, value) =>
+//     setAvailability((p) => p.map((s, i) => (i === idx ? { ...s, [field]: value } : s)));
+
+//   const submit = async (e) => {
+//     e.preventDefault();
+//     if (!base.firstName || !base.lastName || !base.email || !base.password) return toast.error("Please fill required fields");
+//     setLoading(true);
+//     try {
+//       const payload = {
+//         ...base,
+//         licenseNumber: licenseNumber || undefined,
+//         specialties: specialties ? specialties.split(",").map((s) => s.trim()).filter(Boolean) : [],
+//         qualifications: qualifications
+//           .filter((q) => q.degree || q.institution || q.year)
+//           .map((q) => ({ degree: q.degree || undefined, institution: q.institution || undefined, year: q.year ? Number(q.year) : undefined })),
+//         availability: availability.map((s) => ({ day: Number(s.day), start: s.start, end: s.end })),
+//         consultationFee: consultationFee ? Number(consultationFee) : 0,
+//         roomNo: roomNo || undefined,
+//       };
+//       const data = await postJSON(`${API}/api/hospital/users/doctor`, headers, payload);
+//       toast.success("Doctor created");
+//       onCreated?.(data);
+//       onClose();
+//     } catch (err) {
+//       toast.error(err.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   if (!open) return null;
+
+//   return (
+//     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
+//       <div className="min-h-full flex items-start justify-center p-4">
+//         <div className="w-full max-w-3xl rounded-2xl bg-white border border-teal-100 shadow-xl">
+//           <div className="p-6 border-b border-teal-100">
+//             <h2 className="text-xl font-bold text-teal-900">Add Doctor</h2>
+//             <p className="text-sm text-teal-900/70">Create a doctor and set qualifications & availability.</p>
+//           </div>
+//           <form onSubmit={submit} className="p-6 space-y-6">
+//             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//               <Field label="First name *" name="firstName" value={base.firstName} onChange={updateBase} icon={User} />
+//               <Field label="Last name *" name="lastName" value={base.lastName} onChange={updateBase} icon={User} />
+//               <Field label="Email *" name="email" type="email" value={base.email} onChange={updateBase} icon={Mail} />
+//               <Field label="Phone" name="phone" value={base.phone} onChange={updateBase} icon={Phone} />
+//               <Field label="Password *" name="password" type="password" value={base.password} onChange={updateBase} icon={Lock} />
+//               <Field label="SLMC License No." value={licenseNumber} onChange={(e) => setLicenseNumber(e.target.value)} icon={IdCard} />
+//             </div>
+//             <Field
+//               label="Specialties (comma-separated)"
+//               placeholder="Cardiology, Pediatrics"
+//               value={specialties}
+//               onChange={(e) => setSpecialties(e.target.value)}
+//               icon={BookOpen}
+//             />
+//             {/* Qualifications & Availability omitted for brevity */}
+//             <button type="submit" disabled={loading} className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl">
+//               {loading ? "Saving..." : "Create Doctor"}
+//             </button>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// /* ----------------------- PATIENT MODAL ----------------------- */
+// const CreatePatientModal = ({ open, onClose, onCreated }) => {
+//   const headers = useAuthHeader();
+//   const [loading, setLoading] = useState(false);
+
+//   const [base, setBase] = useState({
+//     firstName: "",
+//     lastName: "",
+//     dob: "",
+//     gender: "Male",
+//     email: "",
+//     phone: "",
+//   });
+
+//   const [guardian, setGuardian] = useState({
+//     name: "",
+//     phone: "",
+//     consent: false,
+//   });
+
+//   const updateBase = (e) => setBase((p) => ({ ...p, [e.target.name]: e.target.value }));
+//   const updateGuardian = (e) => setGuardian((p) => ({ ...p, [e.target.name]: e.target.value }));
+
+//   const isUnder16 = () => {
+//     if (!base.dob) return false;
+//     const age = Math.floor((new Date() - new Date(base.dob)) / (365.25 * 24 * 60 * 60 * 1000));
+//     return age < 16;
+//   };
+
+//   const submit = async (e) => {
+//     e.preventDefault();
+//     if (!base.firstName || !base.lastName || !base.dob) return toast.error("Please fill required fields");
+//     if (isUnder16() && (!guardian.name || !guardian.consent)) return toast.error("Guardian details and consent required for patients under 16");
+//     setLoading(true);
+//     try {
+//       const payload = { ...base };
+//       if (isUnder16()) payload.guardian = { ...guardian };
+//       const data = await postJSON(`${API}/api/hospital/users/patient`, headers, payload);
+//       toast.success("Patient created");
+//       onCreated?.(data);
+//       onClose();
+//     } catch (err) {
+//       toast.error(err.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   if (!open) return null;
+
+//   return (
+//     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm overflow-y-auto">
+//       <div className="min-h-full flex items-start justify-center p-4">
+//         <div className="w-full max-w-3xl rounded-2xl bg-white border border-teal-100 shadow-xl">
+//           <div className="p-6 border-b border-teal-100">
+//             <h2 className="text-xl font-bold text-teal-900">Add Patient</h2>
+//             <p className="text-sm text-teal-900/70">Fill patient details. Guardian required if under 16.</p>
+//           </div>
+//           <form onSubmit={submit} className="p-6 space-y-6">
+//             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+//               <Field label="First name *" name="firstName" value={base.firstName} onChange={updateBase} icon={User} />
+//               <Field label="Last name *" name="lastName" value={base.lastName} onChange={updateBase} icon={User} />
+//               <Field label="Date of Birth *" name="dob" type="date" value={base.dob} onChange={updateBase} icon={Calendar} />
+//               <Select label="Gender" name="gender" value={base.gender} onChange={updateBase} icon={User}>
+//                 <option value="Male">Male</option>
+//                 <option value="Female">Female</option>
+//                 <option value="Other">Other</option>
+//               </Select>
+//               <Field label="Email" name="email" type="email" value={base.email} onChange={updateBase} icon={Mail} />
+//               <Field label="Phone" name="phone" value={base.phone} onChange={updateBase} icon={Phone} />
+//             </div>
+
+//             {isUnder16() && (
+//               <div className="border border-teal-200 rounded-xl p-4 space-y-4 bg-teal-50">
+//                 <h3 className="font-semibold text-teal-900">Guardian Details</h3>
+//                 <Field label="Guardian Name *" name="name" value={guardian.name} onChange={updateGuardian} icon={User} />
+//                 <Field label="Guardian Phone *" name="phone" value={guardian.phone} onChange={updateGuardian} icon={Phone} />
+//                 <Checkbox label="Consent provided *" name="consent" checked={guardian.consent} onChange={(e) => setGuardian((p) => ({ ...p, consent: e.target.checked }))} />
+//               </div>
+//             )}
+
+//             <button type="submit" disabled={loading} className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-xl">
+//               {loading ? "Saving..." : "Create Patient"}
+//             </button>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// /* ----------------------- EXPORTED DASHBOARD ----------------------- */
+// export default function HospitalDashboard() {
+//   const [doctorModalOpen, setDoctorModalOpen] = useState(false);
+//   const [patientModalOpen, setPatientModalOpen] = useState(false);
+
+//   return (
+//     <div className="space-y-6">
+//       <h1 className="text-2xl font-bold text-teal-900">Hospital Dashboard</h1>
+//       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+//         <CardButton icon={Stethoscope} title="Add Doctor" desc="Create new doctor" onClick={() => setDoctorModalOpen(true)} />
+//         <CardButton icon={UserPlus} title="Add Patient" desc="Register new patient" onClick={() => setPatientModalOpen(true)} />
+//       </div>
+
+//       <CreateDoctorModal open={doctorModalOpen} onClose={() => setDoctorModalOpen(false)} onCreated={(d) => console.log("Doctor Created", d)} />
+//       <CreatePatientModal open={patientModalOpen} onClose={() => setPatientModalOpen(false)} onCreated={(p) => console.log("Patient Created", p)} />
+//     </div>
+//   );
+// }

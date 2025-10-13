@@ -181,6 +181,9 @@ import DoctorDashboard from './pages/dashboards/doctorDashboard';
 import AdminDashboard from './pages/dashboards/hospitalDashboard';
 import PatientDashboard from './pages/dashboards/patientDashboard';
 
+// Medical History
+import MedicalHistoryPage from './pages/MedicalHistoryPage';
+
 // Appointments
 import Specialties from './pages/appointments/Specialties';
 import Doctors from './pages/appointments/Doctors';
@@ -292,6 +295,13 @@ const AppContent = () => {
         <Route path="/patient/dashboard" element={<Navigate to="/patient-dashboard" replace />} />
         <Route path="/doctor/dashboard" element={<Navigate to="/doctor-dashboard" replace />} />
         <Route path="/cashier/dashboard" element={<Navigate to="/cashier-dashboard" replace />} />
+
+        {/* Medical History (patient) */}
+        <Route path="/medical-history" element={
+          <ProtectedRoute roles={['patient']}>
+            <MedicalHistoryPage />
+          </ProtectedRoute>
+        } />
 
         {/* Appointments (patient) */}
 <Route path="/appointments" element={

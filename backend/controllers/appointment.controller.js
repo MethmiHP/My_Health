@@ -382,17 +382,33 @@ exports.myAppointments = async (req, res) => {
 
 // GET /api/appointments/doctor-day?date=YYYY-MM-DD
 exports.doctorDayList = async (req, res) => {
-  const { date } = req.query; // YYYY-MM-DD
-  const start = new Date(date); start.setHours(0, 0, 0, 0);
-  const end = new Date(start); end.setDate(end.getDate() + 1);
+  try {
+    const { date } = req.query; // YYYY-MM-DD
+    
+    if (!date) {
+      return res.status(400).json({ message: 'Date parameter is required' });
+    }
+    
+    if (!req.user || !req.user.sub) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
+    const start = new Date(date); 
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start); 
+    end.setDate(end.getDate() + 1);
 
-  const list = await Appointment
-    .find({
-      doctorId: req.user.sub,
-      slotStart: { $gte: start, $lt: end },
-      status: 'booked'
-    })
-    .populate('patientId', 'firstName lastName');
+    const list = await Appointment
+      .find({
+        doctorId: req.user.sub,
+        slotStart: { $gte: start, $lt: end },
+        status: 'booked'
+      })
+      .populate('patientId', 'firstName lastName');
 
-  res.json({ appointments: list });
+    res.json({ appointments: list });
+  } catch (error) {
+    console.error('Doctor day list error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 };

@@ -41,12 +41,18 @@ const router = express.Router();
 const hospitalAuthRoutes = require('./routes/hospitalAuth.routes');
 const userRoutes = require('./routes/user.routes');
 const hospitalUsersRoutes = require('./routes/hospitalUsers.routes');
+const patientRoutes = require('./routes/patient.routes');
+const patientReportRoutes = require('./routes/patientReport.routes');
+const medicalHistoryRoutes = require('./routes/medicalHistory.routes');
 const mailService = require('./services/mail.service'); // <-- make sure this exists
 
 // Mount WITHOUT '/api' (app.js adds '/api')
 router.use('/hospital/auth', hospitalAuthRoutes);
 router.use('/users', userRoutes);
 router.use('/hospital/users', hospitalUsersRoutes);
+router.use('/patients', patientRoutes);
+router.use('/patient-reports', patientReportRoutes);
+router.use('/medical-history', medicalHistoryRoutes);
 
 router.use('/appointments', require('./routes/appointment.routes'));
 
