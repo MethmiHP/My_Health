@@ -12,6 +12,62 @@ const getHospitalId = (req) => {
 
 // -------------------- Patient Routes -------------------- //
 
+// Get patient profile by user ID (for patient dashboard)
+router.get('/user/:userId', auth(['patient']), async (req, res) => {
+  try {
+    const hospitalId = getHospitalId(req);
+    const userId = req.params.userId;
+
+    // Patients can only view their own profile
+    if (req.user.sub !== userId) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Convert userId to ObjectId if it's a valid ObjectId string
+    const userIdObjectId = require('mongoose').Types.ObjectId.isValid(userId)
+      ? new (require('mongoose')).Types.ObjectId(userId)
+      : userId;
+
+    const query = { userId: userIdObjectId };
+    if (hospitalId) query.hospitalId = hospitalId;
+
+    const patient = await PatientProfile.findOne(query)
+      .populate('userId', 'firstName lastName email phone userStatus');
+
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient profile not found' });
+    }
+
+    res.json({
+      _id: patient._id,
+      user: patient.userId,
+      firstName: patient.firstName,
+      lastName: patient.lastName,
+      nic: patient.nic,
+      dob: patient.dob,
+      gender: patient.gender,
+      bloodGroup: patient.bloodGroup,
+      allergies: patient.allergies,
+      chronicConditions: patient.chronicConditions,
+      familyConditions: patient.familyConditions,
+      medications: patient.medications,
+      surgeries: patient.surgeries,
+      heightCm: patient.heightCm,
+      weightKg: patient.weightKg,
+      emergencyContact: patient.emergencyContact,
+      insurance: patient.insurance,
+      guardian: patient.guardian,
+      consent: patient.consent,
+      barcode: patient.barcode,
+      createdAt: patient.createdAt,
+      updatedAt: patient.updatedAt
+    });
+  } catch (error) {
+    console.error('Get patient by user ID error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get all patients for the hospital
 router.get('/patients', auth(['admin', 'reception', 'doctor']), async (req, res) => {
   try {
