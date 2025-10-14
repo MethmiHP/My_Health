@@ -40,3 +40,7 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
 
+app.use("/api/payments", require("./routes/payment.routes"));
+
+
+

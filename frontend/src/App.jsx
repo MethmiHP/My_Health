@@ -180,6 +180,7 @@ import CashierDashboard from './pages/dashboards/cashierDashboard';
 import DoctorDashboard from './pages/dashboards/doctorDashboard';
 import AdminDashboard from './pages/dashboards/hospitalDashboard';
 import PatientDashboard from './pages/dashboards/patientDashboard';
+import CashierPayments from './pages/dashboards/CashierPayments';
 
 // Medical History
 import MedicalHistoryPage from './pages/MedicalHistoryPage';
@@ -288,6 +289,15 @@ const AppContent = () => {
               <CashierDashboard />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/cashier-dashboard/payments"
+          element={
+            <ProtectedRoute roles={['cashier']}>
+              <CashierPayments />
+            </ProtectedRoute>
+        } 
         />
 
         {/* --- Optional aliases: prevent old links from 404ing --- */}

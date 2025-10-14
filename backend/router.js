@@ -45,6 +45,7 @@ const patientRoutes = require('./routes/patient.routes');
 const patientReportRoutes = require('./routes/patientReport.routes');
 const medicalHistoryRoutes = require('./routes/medicalHistory.routes');
 const mailService = require('./services/mail.service'); // <-- make sure this exists
+const paymentRoutes = require('./routes/payment.routes'); // <-- payment routes
 
 // Mount WITHOUT '/api' (app.js adds '/api')
 router.use('/hospital/auth', hospitalAuthRoutes);
@@ -53,8 +54,8 @@ router.use('/hospital/users', hospitalUsersRoutes);
 router.use('/patients', patientRoutes);
 router.use('/patient-reports', patientReportRoutes);
 router.use('/medical-history', medicalHistoryRoutes);
-
 router.use('/appointments', require('./routes/appointment.routes'));
+router.use('/payments', paymentRoutes);
 
 // Health
 router.get('/health', (req, res) => res.json({ ok: true }));
@@ -64,6 +65,7 @@ router.post('/debug/email', async (req, res) => {
   try {
     const { to = process.env.EMAIL_USER } = req.body || {};
     if (!to) return res.status(400).json({ message: 'Missing "to" address' });
+    
 
     const info = await mailService.send({
       to,
