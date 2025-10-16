@@ -488,4 +488,44 @@ exports.me = async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 };
+// controllers/auth.controller.js
+// const User = require('../models/userModel');          // adjust path/name to your user model
+const Patient = require('../models/patientProfileModel');    // if you keep extra patient fields here (optional)
+
+/**
+ * Returns the current authenticated user's basic profile:
+ * { name, email, phone }
+ * 
+ * Assumes authMiddleware put { id, role } on req.user.
+ * If your fields live entirely on User, you only need that lookup.
+ */
+exports.me = async (req, res) => {
+  try {
+    const { id, role } = req.user || {};
+    if (!id) return res.status(401).json({ message: 'Unauthorized' });
+
+    // Pull from your main user store
+    let userDoc = await User.findById(id).lean().exec();
+
+    // Optional: if you store phone on a Patient profile document
+    let patientDoc = null;
+    if (role === 'patient') {
+      try {
+        patientDoc = await Patient.findOne({ userId: id }).lean().exec();
+      } catch (_) {}
+    }
+
+    const first = userDoc?.firstName || userDoc?.firstname || '';
+    const last  = userDoc?.lastName  || userDoc?.lastname  || '';
+    const name  = [first, last].filter(Boolean).join(' ').trim() || userDoc?.name || userDoc?.fullName || '';
+
+    const email = userDoc?.email || '';
+    const phone = patientDoc?.phone || userDoc?.phone || userDoc?.mobile || userDoc?.contactNumber || '';
+
+    return res.json({ name, email, phone });
+  } catch (err) {
+    console.error('auth.me error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
 

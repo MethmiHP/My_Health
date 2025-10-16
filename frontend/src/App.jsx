@@ -191,6 +191,7 @@ import Doctors from './pages/appointments/Doctors';
 import DoctorSlots from './pages/appointments/DoctorSlots';
 import ConfirmAppointment from './pages/appointments/ConfirmAppointment';
 import MyAppointments from './pages/appointments/MyAppointments';
+import AppointmentConfirmed from './pages/appointments/AppointmentConfirmed';
 
 // -------- Utility pages --------
 const Unauthorized = () => (
@@ -339,6 +340,7 @@ const AppContent = () => {
     <MyAppointments />
   </ProtectedRoute>
 } />
+<Route path="/appointments/confirmed" element={<AppointmentConfirmed />} />
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
