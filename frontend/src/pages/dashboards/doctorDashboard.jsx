@@ -102,8 +102,12 @@ export default function DoctorDashboard() {
     setScanLoading(true);
     try {
       const response = await getJSON(`${API_BASE}/api/patients/barcode/${barcode}`, headers);
-      setScannedPatient(response);
-      toast.success(`Patient found: ${response.user?.firstName} ${response.user?.lastName}`);
+      // Normalize to include `user` for downstream components expecting it
+      const normalized = { ...response, user: response.user || response.userId };
+      setScannedPatient(normalized);
+      const firstName = normalized.user?.firstName || normalized.userId?.firstName || '';
+      const lastName = normalized.user?.lastName || normalized.userId?.lastName || '';
+      toast.success(`Patient found: ${firstName} ${lastName}`.trim());
     } catch (error) {
       toast.error(`Patient not found: ${error.message || 'Error occurred'}`);
       setScannedPatient(null);
@@ -159,7 +163,12 @@ export default function DoctorDashboard() {
       toast.info('No new surgeries to save');
       return;
     }
-    await handleUpdatePatient(scannedPatient._id, { surgeries: toAdd });
+    const resp = await handleUpdatePatient(scannedPatient._id, { surgeries: toAdd });
+    // Update local scanned patient surgeries so UI reflects save immediately
+    if (resp?.patient?.surgeries) {
+      setScannedPatient(prev => ({ ...prev, surgeries: resp.patient.surgeries }));
+      toast.success('Surgeries saved');
+    }
   };
 
   // Create prescription for scanned patient from second code
@@ -171,7 +180,16 @@ export default function DoctorDashboard() {
     }
 
     try {
-      const userId = scannedPatient.user?._id || scannedPatient.userId || scannedPatient.user || scannedPatient._id;
+      // Resolve the patient's USER id (not the patient profile id)
+      let userId = scannedPatient.user?._id
+        || (scannedPatient.userId && typeof scannedPatient.userId === 'object' ? scannedPatient.userId._id : scannedPatient.userId);
+      if (!userId) {
+        // As a last resort, try if scannedPatient.user is an object/string
+        userId = typeof scannedPatient.user === 'object' ? scannedPatient.user?._id : scannedPatient.user;
+      }
+      if (!userId || typeof userId !== 'string') {
+        throw new Error('Unable to determine patient user id for prescription');
+      }
       const now = new Date();
       const doctorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Doctor';
       const prescriptionId = `RX-${now.getTime()}`;
