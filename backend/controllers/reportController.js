@@ -2648,35 +2648,80 @@ exports.addReportComment = async (req, res) => {
   }
 };
 
-/* ==================== 6) DOWNLOAD REPORT (CSV/PDF) ==================== */
+// ==================== 6) DOWNLOAD REPORT (polished PDF layout, no blank pages; fixed revenue; no "Completed") ====================
 exports.downloadReport = async (req, res) => {
   try {
     const { format } = req.query;
     const hospitalId = getHospitalId(req);
+
     if (!format || !['pdf', 'csv'].includes(format)) {
       return res.status(400).json({ message: 'Invalid format. Use "pdf" or "csv"' });
     }
 
+    // Normalize hospitalId -> works whether DB stores string or ObjectId
+    const hid = Types.ObjectId.isValid(hospitalId) ? new Types.ObjectId(hospitalId) : hospitalId;
+
+    // --- Pull the data ---
     const { startDate, endDate } = req.query;
 
     const dateFilter = {};
     if (startDate) dateFilter.$gte = new Date(startDate);
     if (endDate) dateFilter.$lte = new Date(endDate);
 
-    const appointmentQuery = { hospitalId };
+    const appointmentQuery = { hospitalId: hid };
     if (Object.keys(dateFilter).length) appointmentQuery.slotStart = dateFilter;
 
-    const paymentQuery = { hospitalId, paymentStatus: 'completed' };
-    if (Object.keys(dateFilter).length) paymentQuery.createdAt = dateFilter;
+    const paymentMatch = { hospitalId: hid, paymentStatus: 'completed' };
+    if (Object.keys(dateFilter).length) paymentMatch.createdAt = dateFilter;
 
-    const [appointments, payments, hospital] = await Promise.all([
+    const [
+      appointments,
+      payments,
+      hospital,
+      paymentsByMethodAgg,
+      revenueByServiceAgg
+    ] = await Promise.all([
       Appointment.find(appointmentQuery)
         .populate('doctorId', 'firstName lastName')
         .populate('patientId', 'firstName lastName')
         .sort({ slotStart: -1 })
         .limit(1000),
-      Payment.find(paymentQuery).populate('userId', 'firstName lastName').sort({ createdAt: -1 }).limit(1000),
-      Hospital.findById(hospitalId)
+
+      Payment.find(paymentMatch)
+        .populate('userId', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .limit(1000),
+
+      Hospital.findById(hid),
+
+      // Payment methods breakdown
+      Payment.aggregate([
+        { $match: paymentMatch },
+        { $group: { _id: '$paymentMethod', count: { $sum: 1 }, total: { $sum: '$totalAmount' } } },
+        { $sort: { total: -1 } }
+      ]),
+
+      // Revenue by service
+      Payment.aggregate([
+        { $match: paymentMatch },
+        {
+          $project: {
+            medicationRevenue: { $sum: { $map: { input: { $ifNull: ['$medications', []] }, as: 'm', in: '$$m.totalPrice' } } },
+            surgeryRevenue:    { $sum: { $map: { input: { $ifNull: ['$surgeries',  []] }, as: 's', in: '$$s.totalPrice' } } },
+            procedureRevenue:  { $sum: { $map: { input: { $ifNull: ['$procedures', []] }, as: 'p', in: '$$p.totalPrice' } } },
+            appointmentFee: '$appointmentFee'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            medications: { $sum: '$medicationRevenue' },
+            surgeries:   { $sum: '$surgeryRevenue' },
+            procedures:  { $sum: '$procedureRevenue' },
+            appointments:{ $sum: '$appointmentFee' }
+          }
+        }
+      ])
     ]);
 
     if (format === 'csv') {
@@ -2689,7 +2734,6 @@ exports.downloadReport = async (req, res) => {
         { label: 'Reason', value: 'reason' },
         { label: 'Channel', value: 'channel' }
       ];
-
       const paymentFields = [
         { label: 'Date', value: (row) => new Date(row.createdAt).toLocaleDateString() },
         { label: 'Receipt Number', value: 'receiptNumber' },
@@ -2700,14 +2744,13 @@ exports.downloadReport = async (req, res) => {
         { label: 'Tax (LKR)', value: 'tax' },
         { label: 'Discount (LKR)', value: 'discount' }
       ];
-
       const appointmentParser = new Parser({ fields: appointmentFields });
       const paymentParser = new Parser({ fields: paymentFields });
 
       const appointmentCsv = appointments.length ? appointmentParser.parse(appointments) : 'No appointments data';
       const paymentCsv = payments.length ? paymentParser.parse(payments) : 'No payments data';
 
-      const totalRevenue = payments.reduce((sum, p) => sum + p.totalAmount, 0);
+      const totalRevenue = payments.reduce((s, p) => s + (p.totalAmount || 0), 0);
       const totalAppointments = appointments.length;
 
       const header =
@@ -2727,43 +2770,227 @@ exports.downloadReport = async (req, res) => {
       return res.send(combinedCsv);
     }
 
-    // PDF
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    // ---------------- PDF ----------------
+    const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true });
+
+    // helpers
+    const pageWidth = 595.28; // A4 width pt
+    const left = 50;
+    const right = pageWidth - 50;
+    const brand = '#0d9488';
+    const muted = '#6b7280';
+    const gridGap = 10;
+
+    function money(n) {
+      return (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function drawDivider() {
+      const y = doc.y + 4;
+      doc.moveTo(left, y).lineTo(right, y).strokeColor(brand).lineWidth(0.5).stroke();
+      doc.moveDown(0.6);
+    }
+    function kpi(title, value, x, y, w, h) {
+      doc.save();
+      doc.roundedRect(x, y, w, h, 6).fillOpacity(0.06).fill(brand).fillOpacity(1).strokeColor('#e5e7eb').lineWidth(0.5).stroke();
+      doc.fillColor(muted).fontSize(9).text(title, x + 10, y + 8, { width: w - 20 });
+      doc.fillColor('#111827').fontSize(16).text(value, x + 10, y + 24, { width: w - 20 });
+      doc.restore();
+    }
+    function writePageNumbers() {
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        const txt = `Page ${i + 1} of ${range.count}`;
+        doc.fontSize(8).fillColor(muted).text(txt, left, 810, { width: right - left, align: 'center' });
+      }
+    }
+    function table({ columns, rows, topY, zebra = true }) {
+      const colX = [];
+      let x = left;
+      columns.forEach((c) => { colX.push(x); x += c.width; });
+      const headerY = topY;
+
+      // header
+      doc.fontSize(9).fillColor(brand);
+      columns.forEach((c, i) => {
+        doc.text(c.label, colX[i] + 2, headerY, { width: c.width - 4 });
+      });
+      doc.moveTo(left, headerY + 12).lineTo(right, headerY + 12).strokeColor(brand).lineWidth(0.5).stroke();
+
+      // body
+      doc.fontSize(9).fillColor('#111827');
+      let y = headerY + 16;
+      rows.forEach((row, idx) => {
+        if (y > 760) {
+          doc.addPage();
+          y = 60;
+          // redraw header
+          doc.fontSize(9).fillColor(brand);
+          columns.forEach((c, i) => doc.text(c.label, colX[i], y, { width: c.width - 4 }));
+          doc.moveTo(left, y + 12).lineTo(right, y + 12).strokeColor(brand).lineWidth(0.5).stroke();
+          y += 16;
+        }
+        if (zebra && idx % 2 === 0) {
+          doc.save();
+          doc.rect(left, y - 2, right - left, 14).fillOpacity(0.05).fill('#f3f4f6').fillOpacity(1);
+          doc.restore();
+        }
+        columns.forEach((c, i) => {
+          const val = typeof c.accessor === 'function' ? c.accessor(row) : row[c.accessor];
+          doc.fillColor('#111827').text(String(val ?? ''), colX[i] + 2, y, { width: c.width - 4 });
+        });
+        y += 16;
+      });
+      doc.moveDown(1);
+      return y;
+    }
+
+    // KPIs (NO "Completed")
+    const totalRevenue = payments.reduce((s, p) => s + (p.totalAmount || 0), 0);
+    const avgTxn = payments.length ? totalRevenue / payments.length : 0;
+    const cancelled = appointments.filter(a => a.status === 'cancelled').length;
+    const revenueByService = revenueByServiceAgg[0] || { medications: 0, surgeries: 0, procedures: 0, appointments: 0 };
+
+    // header
     const filename = `hospital-report-${Date.now()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     doc.pipe(res);
 
-    doc.fontSize(24).fillColor('#0d9488').text('Hospital Analytics Report', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor('#333').text(hospital?.name || 'Hospital Name', { align: 'center' });
-    doc.fontSize(10).fillColor('#666').text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
-    if (startDate || endDate) doc.text(`Period: ${startDate || 'All time'} to ${endDate || 'Present'}`, { align: 'center' });
+    doc.fontSize(22).fillColor(brand).text('Hospital Analytics Report', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(12).fillColor('#111827').text(hospital?.name || 'Hospital', { align: 'center' });
+    doc.fontSize(10).fillColor(muted).text(`Generated: ${new Date().toLocaleString()}`, { align: 'center' });
+    if (startDate || endDate) doc.text(`Period: ${startDate || 'All time'} → ${endDate || 'Present'}`, { align: 'center' });
+    doc.moveDown(1);
+    drawDivider();
+
+    // KPI grid (3 + 2 cards)
+    const cardW = (right - left - gridGap * 2) / 3;
+    const cardH = 52;
+    let yKpi = doc.y;
+    kpi('Appointments', appointments.length, left, yKpi, cardW, cardH);
+    kpi('Cancelled', cancelled, left + cardW + gridGap, yKpi, cardW, cardH);
+    kpi('Revenue (LKR)', money(totalRevenue), left + (cardW + gridGap) * 2, yKpi, cardW, cardH);
+    yKpi += cardH + gridGap;
+    kpi('Avg Transaction (LKR)', money(avgTxn), left, yKpi, cardW, cardH);
+    kpi('Transactions', payments.length, left + cardW + gridGap, yKpi, cardW, cardH);
+    // (third card intentionally left empty for balance)
+    doc.y = yKpi + cardH + 12;
+
+    // Appointments table
+    doc.fontSize(14).fillColor('#111827').text('Recent Appointments');
+    drawDivider();
+    if (!appointments.length) {
+      doc.fontSize(10).fillColor(muted).text('No appointments found for this period.');
+    } else {
+      table({
+        topY: doc.y,
+        columns: [
+          { label: 'Date',    width: 90,  accessor: (r) => new Date(r.slotStart).toLocaleDateString() },
+          { label: 'Patient', width: 150, accessor: (r) => r.patientId ? `${r.patientId.firstName} ${r.patientId.lastName}` : 'N/A' },
+          { label: 'Doctor',  width: 150, accessor: (r) => r.doctorId ? `${r.doctorId.firstName} ${r.doctorId.lastName}` : 'N/A' },
+          { label: 'Status',  width: 80,  accessor: (r) => r.status || '—' },
+          { label: 'Channel', width: 75,  accessor: (r) => r.channel || '—' }
+        ],
+        rows: appointments.slice(0, 200)
+      });
+    }
+
+    // Payments table
+    if (doc.y > 640) doc.addPage();
+    doc.fontSize(14).fillColor('#111827').text('Recent Payments');
+    drawDivider();
+    if (!payments.length) {
+      doc.fontSize(10).fillColor(muted).text('No payments found for this period.');
+    } else {
+      table({
+        topY: doc.y,
+        columns: [
+          { label: 'Date',          width: 90,  accessor: (r) => new Date(r.createdAt).toLocaleDateString() },
+          { label: 'Receipt',       width: 90,  accessor: (r) => r.receiptNumber || '—' },
+          { label: 'Patient',       width: 150, accessor: (r) => r.userId ? `${r.userId.firstName} ${r.userId.lastName}` : 'N/A' },
+          { label: 'Method',        width: 90,  accessor: (r) => r.paymentMethod || '—' },
+          { label: 'Amount (LKR)',  width: 110, accessor: (r) => money(r.totalAmount) }
+        ],
+        rows: payments.slice(0, 200)
+      });
+    }
+
+    // Payment methods breakdown
+    if (doc.y > 640) doc.addPage();
+    doc.fontSize(14).fillColor('#111827').text('Payment Methods Breakdown');
+    drawDivider();
+    table({
+      topY: doc.y,
+      columns: [
+        { label: 'Method',       width: 220, accessor: (r) => r._id || '—' },
+        { label: 'Transactions', width: 120, accessor: (r) => r.count },
+        { label: 'Total (LKR)',  width: 150, accessor: (r) => money(r.total) }
+      ],
+      rows: paymentsByMethodAgg
+    });
+
+    // Revenue by service
+    if (doc.y > 640) doc.addPage();
+    doc.fontSize(14).fillColor('#111827').text('Revenue by Service');
+    drawDivider();
+    const serviceRows = [
+      { label: 'Medications',      total: revenueByService.medications || 0 },
+      { label: 'Surgeries',        total: revenueByService.surgeries   || 0 },
+      { label: 'Procedures',       total: revenueByService.procedures  || 0 },
+      { label: 'Appointment Fees', total: revenueByService.appointments|| 0 }
+    ];
+    table({
+      topY: doc.y,
+      columns: [
+        { label: 'Service',     width: 300, accessor: (r) => r.label },
+        { label: 'Total (LKR)', width: 220, accessor: (r) => money(r.total) }
+      ],
+      rows: serviceRows,
+      zebra: false
+    });
+
+    // Top medications
+    const topMedsAgg = await Payment.aggregate([
+      { $match: paymentMatch },
+      { $unwind: '$medications' },
+      { $group: {
+          _id: '$medications.name',
+          totalQuantity: { $sum: '$medications.quantity' },
+          totalRevenue:  { $sum: '$medications.totalPrice' }
+        } },
+      { $sort: { totalRevenue: -1 } },
+      { $limit: 15 }
+    ]);
+    if (topMedsAgg.length) {
+      if (doc.y > 640) doc.addPage();
+      doc.fontSize(14).fillColor('#111827').text('Top Medications');
+      drawDivider();
+      table({
+        topY: doc.y,
+        columns: [
+          { label: 'Medication',     width: 260, accessor: (r) => r._id || '—' },
+          { label: 'Quantity',       width: 120, accessor: (r) => r.totalQuantity },
+          { label: 'Revenue (LKR)',  width: 160, accessor: (r) => money(r.totalRevenue) }
+        ],
+        rows: topMedsAgg
+      });
+    }
+
+    // closing note
     doc.moveDown(2);
+    doc.fontSize(9).fillColor(muted).text('This is a system-generated report.', { align: 'center' });
 
-    doc.fontSize(16).fillColor('#0d9488').text('Summary', { underline: true });
-    doc.moveDown(0.5);
-
-    const totalRevenue = payments.reduce((sum, p) => sum + p.totalAmount, 0);
-    const avgTransaction = payments.length ? totalRevenue / payments.length : 0;
-
-    doc.fontSize(11).fillColor('#333')
-      .text(`Total Appointments: ${appointments.length}`, { continued: true })
-      .text(`    Total Revenue: LKR ${totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
-
-    doc.text(`Completed: ${appointments.filter(a => a.status === 'completed').length}`, { continued: true })
-      .text(`    Total Transactions: ${payments.length}`, { align: 'right' });
-
-    doc.text(`Cancelled: ${appointments.filter(a => a.status === 'cancelled').length}`, { continued: true })
-      .text(`    Avg Transaction: LKR ${avgTransaction.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, { align: 'right' });
-
-    // (Trimmed: your table rendering here)
+    // page numbers at the very end (prevents blank trailing pages)
+    writePageNumbers();
     doc.end();
   } catch (error) {
     console.error('Download report error:', error);
     res.status(500).json({ success: false, message: 'Failed to download report', error: error.message });
   }
 };
+
 
 /* ==================== 7) SCHEDULE REPORT ==================== */
 exports.scheduleReport = async (req, res) => {

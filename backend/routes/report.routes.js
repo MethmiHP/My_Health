@@ -88,6 +88,10 @@ const adminOnly = auth(['admin']);
   console.error(`[reports] ${fn} is not a function — check controllers/reportController.js`)
 );
 
+
+router.get('/download', adminOnly, reportCtrl.downloadReport);
+
+
 // Routes
 router.get('/summary',  adminOnly, reportCtrl.getReportSummary);
 router.get('/detailed', adminOnly, reportCtrl.getDetailedReport);
