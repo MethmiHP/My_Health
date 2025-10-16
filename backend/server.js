@@ -42,5 +42,4 @@ app.listen(PORT, () => {
 
 app.use("/api/payments", require("./routes/payment.routes"));
 
-
-
+app.use("/api/reprts", require("./routes/report.routes"));

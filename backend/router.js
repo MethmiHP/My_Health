@@ -46,6 +46,7 @@ const patientReportRoutes = require('./routes/patientReport.routes');
 const medicalHistoryRoutes = require('./routes/medicalHistory.routes');
 const mailService = require('./services/mail.service'); // <-- make sure this exists
 const paymentRoutes = require('./routes/payment.routes'); // <-- payment routes
+const reportRoutes = require('./routes/report.routes');
 
 // Mount WITHOUT '/api' (app.js adds '/api')
 router.use('/hospital/auth', hospitalAuthRoutes);
@@ -56,6 +57,7 @@ router.use('/patient-reports', patientReportRoutes);
 router.use('/medical-history', medicalHistoryRoutes);
 router.use('/appointments', require('./routes/appointment.routes'));
 router.use('/payments', paymentRoutes);
+router.use('/reports', reportRoutes);
 
 // Health
 router.get('/health', (req, res) => res.json({ ok: true }));
