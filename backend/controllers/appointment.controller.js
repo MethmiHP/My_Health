@@ -412,3 +412,37 @@ exports.doctorDayList = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+// PATCH /api/appointments/:id/reason
+// Edit ONLY the "reason" field. Time/doctor cannot be changed here.
+exports.updateReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    if (typeof reason !== 'string' || reason.trim().length === 0) {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+
+    const appt = await Appointment.findById(id);
+    if (!appt) return res.status(404).json({ message: 'Appointment not found' });
+
+    // permissions
+    const sameHospital = String(appt.hospitalId) === String(req.user.hospitalId);
+    const isOwner = String(appt.patientId) === String(req.user.sub);
+    const isStaff = ['reception', 'admin'].includes(req.user.role) && sameHospital;
+    if (!isOwner && !isStaff) return res.status(403).json({ message: 'Forbidden' });
+
+    // allow edit only while booked (not cancelled/completed)
+    if (appt.status !== 'booked') {
+      return res.status(400).json({ message: 'Only booked appointments can be edited' });
+    }
+
+    appt.reason = reason.trim();
+    await appt.save();
+
+    return res.json({ message: 'Reason updated', appointment: appt });
+  } catch (err) {
+    console.error('Update reason error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};

@@ -17,4 +17,7 @@ router.post('/:id/reschedule',     auth(['patient','reception']), ctrl.reschedul
 router.get('/my',                  auth(['patient']), ctrl.myAppointments);
 router.get('/doctor/day',          auth(['doctor']),  ctrl.doctorDayList);
 
+router.patch('/:id/reason', auth(), ctrl.updateReason);
+
 module.exports = router;
+
