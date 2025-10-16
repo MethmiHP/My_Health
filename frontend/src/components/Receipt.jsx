@@ -43,7 +43,7 @@
 //     // Hospital Header
 //     doc.setFontSize(20);
 //     doc.setFont('helvetica', 'bold');
-//     doc.text(hospital?.name || 'SmartCare Hospital', pageWidth / 2, yPos, { align: 'center' });
+//     doc.text(hospital?.name || 'My Health Hospital', pageWidth / 2, yPos, { align: 'center' });
     
 //     yPos += 8;
 //     doc.setFontSize(10);
@@ -207,7 +207,7 @@
 //     yPos = doc.internal.pageSize.getHeight() - 30;
 //     doc.setFontSize(9);
 //     doc.setFont('helvetica', 'italic');
-//     doc.text('Thank you for choosing SmartCare!', pageWidth / 2, yPos, { align: 'center' });
+//     doc.text('Thank you for choosing My Health!', pageWidth / 2, yPos, { align: 'center' });
     
 //     yPos += 5;
 //     doc.text('Please keep this receipt for your records.', pageWidth / 2, yPos, { align: 'center' });
@@ -248,7 +248,7 @@
 //           {/* Hospital Info */}
 //           <div className="text-center mb-6 pb-4 border-b-2 border-gray-200">
 //             <h3 className="text-2xl font-bold text-teal-900">
-//               {hospital?.name || 'SmartCare Hospital'}
+//               {hospital?.name || 'My Health Hospital'}
 //             </h3>
 //             <p className="text-sm text-gray-600 mt-1">
 //               {hospital?.address || 'Hospital Address'}
@@ -410,7 +410,7 @@
 //           {/* Footer Info */}
 //           <div className="text-center text-sm text-gray-600 border-t border-gray-200 pt-4">
 //             <p>Served by: {cashier?.firstName} {cashier?.lastName}</p>
-//             <p className="mt-2 font-semibold">Thank you for choosing SmartCare!</p>
+//             <p className="mt-2 font-semibold">Thank you for choosing My Health!</p>
 //             <p className="text-xs mt-1">Please keep this receipt for your records.</p>
 //           </div>
 //         </div>
@@ -494,7 +494,7 @@
 //     // Hospital Header
 //     doc.setFontSize(20);
 //     doc.setFont('helvetica', 'bold');
-//     doc.text(hospital?.name || 'SmartCare Hospital', pageWidth / 2, yPos, { align: 'center' });
+//     doc.text(hospital?.name || 'My Health Hospital', pageWidth / 2, yPos, { align: 'center' });
     
 //     yPos += 8;
 //     doc.setFontSize(10);
@@ -710,7 +710,7 @@
 //     yPos = doc.internal.pageSize.getHeight() - 30;
 //     doc.setFontSize(9);
 //     doc.setFont('helvetica', 'italic');
-//     doc.text('Thank you for choosing SmartCare!', pageWidth / 2, yPos, { align: 'center' });
+//     doc.text('Thank you for choosing My Health!', pageWidth / 2, yPos, { align: 'center' });
     
 //     yPos += 5;
 //     doc.text('Please keep this receipt for your records.', pageWidth / 2, yPos, { align: 'center' });
@@ -777,7 +777,7 @@
 //           {/* Hospital Info */}
 //           <div className="text-center mb-6 pb-4 border-b-2 border-gray-200">
 //             <h3 className="text-2xl font-bold text-teal-900">
-//               {hospital?.name || 'SmartCare Hospital'}
+//               {hospital?.name || 'My Health Hospital'}
 //             </h3>
 //             <p className="text-sm text-gray-600 mt-1">
 //               {hospital?.address || 'Hospital Address'}
@@ -994,7 +994,7 @@
 //           {/* Footer Info */}
 //           <div className="text-center text-sm text-gray-600 border-t border-gray-200 pt-4">
 //             <p>Served by: {cashier?.firstName} {cashier?.lastName}</p>
-//             <p className="mt-2 font-semibold">Thank you for choosing {hospital?.name || 'SmartCare'}!</p>
+//             <p className="mt-2 font-semibold">Thank you for choosing My Health!</p>
 //             <p className="text-xs mt-1">Please keep this receipt for your records.</p>
 //             {isInsurance && (
 //               <p className="text-xs mt-2 text-yellow-700 font-medium">
@@ -1169,7 +1169,7 @@ export default function Receipt({ receiptData, onClose }) {
           {/* Hospital Info */}
           <div className="text-center mb-6 pb-4 border-b-2 border-gray-200">
             <h3 className="text-2xl font-bold text-teal-900">
-              {hospital?.name || 'SmartCare Hospital'}
+              {hospital?.name || 'My Health Hospital'}
             </h3>
             <p className="text-sm text-gray-600 mt-1">
               {hospital?.address || 'Hospital Address'}
@@ -1395,7 +1395,7 @@ export default function Receipt({ receiptData, onClose }) {
           {/* Footer Info */}
           <div className="text-center text-sm text-gray-600 border-t border-gray-200 pt-4">
             <p>Served by: {cashier?.firstName} {cashier?.lastName}</p>
-            <p className="mt-2 font-semibold">Thank you for choosing {hospital?.name || 'SmartCare'}!</p>
+            <p className="mt-2 font-semibold">Thank you for choosing My Health!</p>
             <p className="text-xs mt-1">Please keep this receipt for your records.</p>
             {isInsurance && (
               <p className="text-xs mt-2 text-yellow-700 font-medium">

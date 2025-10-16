@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import heroImg from "../assets/hospital.jpg";
-import logo from "../assets/logo2.jpg";
+import logo from "../assets/Logo.png";
 
 const OnboardHospital = () => {
   const navigate = useNavigate();
@@ -104,20 +104,20 @@ const OnboardHospital = () => {
         <div className="hidden lg:flex lg:col-span-2 flex-col justify-center">
           <div className="flex items-center gap-3">
             {logo ? (
-              <img src={logo} alt="SmartCare" className="h-10 w-auto" />
+              <img src={logo} alt="My Health" className="h-10 w-auto" />
             ) : (
               <div className="h-10 w-10 rounded-xl bg-teal-600 flex items-center justify-center">
                 <Stethoscope className="h-6 w-6 text-white" />
               </div>
             )}
-            <span className="text-2xl font-semibold text-teal-800">SmartCare</span>
+            <span className="text-2xl font-semibold text-teal-800">My Health</span>
           </div>
 
           <h1 className="mt-6 text-4xl font-extrabold text-teal-900 leading-tight">
             Onboard your hospital
           </h1>
           <p className="mt-3 text-teal-900/70">
-            Create your hospital in SmartCare. The first account becomes the <b>Hospital Admin</b> — you can add
+            Create your hospital in My Health. The first account becomes the <b>Hospital Admin</b> — you can add
             doctors, reception, cashier, and patients afterward.
           </p>
 
@@ -367,7 +367,7 @@ const OnboardHospital = () => {
           </form>
 
           <p className="mt-4 text-xs text-center text-teal-900/60">
-            © {new Date().getFullYear()} SmartCare Hospitals. All rights reserved.
+            © {new Date().getFullYear()} My Health Hospitals. All rights reserved.
           </p>
         </div>
       </div>

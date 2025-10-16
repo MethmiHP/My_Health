@@ -5,7 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { toast } from "react-toastify";
 import { Eye, EyeOff, Mail, Lock, Stethoscope } from "lucide-react";
 import heroImg from "../assets/hospital.jpg"; // optional background
-import logo from "../assets/logo2.jpg";        // optional logo
+import logo from "../assets/Logo.png";        // optional logo
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -70,13 +70,13 @@ const Login = () => {
         <div className="hidden lg:flex flex-col justify-center">
           <div className="flex items-center gap-3">
             {logo ? (
-              <img src={logo} alt="SmartCare" className="h-10 w-auto" />
+              <img src={logo} alt="My Health" className="h-10 w-auto" />
             ) : (
               <div className="h-10 w-10 rounded-xl bg-teal-600 flex items-center justify-center">
                 <Stethoscope className="h-6 w-6 text-white" />
               </div>
             )}
-            <span className="text-2xl font-semibold text-teal-800">SmartCare</span>
+            <span className="text-2xl font-semibold text-teal-800">My Health</span>
           </div>
 
           <h1 className="mt-6 text-4xl font-extrabold text-teal-900 leading-tight">
@@ -191,7 +191,7 @@ const Login = () => {
                   <div className="w-full border-t border-teal-100" />
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-white/90 px-2 text-xs text-teal-700">New to SmartCare?</span>
+                  <span className="bg-white/90 px-2 text-xs text-teal-700">New to My Health?</span>
                 </div>
               </div>
 
@@ -217,7 +217,7 @@ const Login = () => {
 
           {/* Small footer note */}
           <p className="mt-4 text-xs text-center text-teal-900/60">
-            © {new Date().getFullYear()} SmartCare Hospitals. All rights reserved.
+            © {new Date().getFullYear()} My Health Hospitals. All rights reserved.
           </p>
         </div>
       </div>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { User, LogOut, Menu, X, Settings } from 'lucide-react';
-import logo from '../assets/logo2.jpg'; // <-- replace with your logo
+import logo from '../assets/Logo.png';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -85,8 +85,8 @@ const Navbar = () => {
           {/* Brand */}
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <img src={logo} alt="SmartCare Logo" className="h-10 w-auto" />
-              <span className="ml-3 text-lg font-semibold text-teal-700">SmartCare</span>
+              <img src={logo} alt="My Health Logo" className="h-14 w-auto" />
+              {/* <span className="ml-3 text-lg font-semibold text-teal-700">My Health</span> */}
             </Link>
           </div>
 
