@@ -3259,7 +3259,7 @@ export default function CashierDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-900 capitalize flex items-center gap-1">
-                            {payment.paymentMethod === 'insurance' && <Shield className="h-3 w-3" />}
+                            {payment.paymentMethod === 'insurance' }
                             {payment.paymentMethod}
                           </span>
                         </td>
