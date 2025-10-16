@@ -1,3 +1,7 @@
+
+
+
+
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
@@ -14,7 +18,7 @@ const PrescriptionSchema = new Schema({
   endDate: { type: Date },
   refills: { type: Number, default: 0 }, // Number of refills allowed
   refillsUsed: { type: Number, default: 0 }, // Number of refills used
-  status: { type: String, enum: ['active', 'completed', 'cancelled', 'expired'], default: 'active' },
+  status: { type: String, enum: ['prescribed', 'filled', 'refilled', 'active', 'completed', 'cancelled', 'expired'], default: 'prescribed' },
   reason: { type: String, trim: true }, // Why prescribed
   sideEffects: [String], // Reported side effects
   notes: { type: String, trim: true }, // Additional notes

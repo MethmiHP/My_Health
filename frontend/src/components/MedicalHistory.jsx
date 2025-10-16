@@ -207,7 +207,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
         )}
       </div>
 
-      {/* Diagnoses */}
+      {/* Diagnoses
       <div className="mb-6">
         <button
           onClick={() => toggleSection('diagnoses')}
@@ -250,7 +250,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Prescriptions */}
       <div className="mb-6">
@@ -349,7 +349,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
         )}
       </div>
 
-      {/* Lab Results */}
+      {/* Lab Results
       <div className="mb-6">
         <button
           onClick={() => toggleSection('labResults')}
@@ -392,9 +392,9 @@ export default function MedicalHistory({ medicalHistory, loading }) {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
-      {/* Immunizations */}
+      {/* Immunizations
       <div className="mb-6">
         <button
           onClick={() => toggleSection('immunizations')}
@@ -435,9 +435,9 @@ export default function MedicalHistory({ medicalHistory, loading }) {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
-      {/* Family History */}
+      {/* Family History
       <div className="mb-6">
         <button
           onClick={() => toggleSection('familyHistory')}
@@ -476,7 +476,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Last Updated */}
       {medicalHistory.lastUpdatedAt && (

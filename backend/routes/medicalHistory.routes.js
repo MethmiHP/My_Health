@@ -1,3 +1,6 @@
+
+
+
 const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
@@ -17,10 +20,13 @@ const getHospitalId = (req) => {
 router.get('/patient/:userId', auth(['patient', 'doctor', 'admin']), async (req, res) => {
   try {
     const hospitalId = getHospitalId(req);
-    const userId = req.params.userId;
+    const rawUserId = req.params.userId;
+    const userId = (require('mongoose').Types.ObjectId.isValid(rawUserId)
+      ? new (require('mongoose')).Types.ObjectId(rawUserId)
+      : rawUserId);
 
     // Patients can only view their own medical history
-    if (req.user.role === 'patient' && req.user.sub !== userId) {
+    if (req.user.role === 'patient' && String(req.user.sub) !== String(userId)) {
       return res.status(403).json({ message: 'Access denied' });
     }
 
@@ -64,6 +70,58 @@ router.get('/patient/:userId', auth(['patient', 'doctor', 'admin']), async (req,
       await medicalHistory.save();
     }
 
+    // Ensure medications reflect profile: add missing as active, mark removed as completed
+    try {
+      const profileMedNames = new Set((patientProfile.medications || []).filter(Boolean));
+      const historyByName = new Map((medicalHistory.medications || []).map(m => [m.name, m]));
+
+      let changed = false;
+
+      // Add any missing medications from profile to history as active entries
+      for (const name of profileMedNames) {
+        if (!historyByName.has(name)) {
+          medicalHistory.medications.push({
+            name,
+            dosage: 'As prescribed',
+            startDate: new Date(),
+            status: 'active',
+            prescribedBy: 'Healthcare Provider'
+          });
+          changed = true;
+        } else {
+          const entry = historyByName.get(name);
+          if (entry.status !== 'active') {
+            entry.status = 'active';
+            entry.endDate = undefined;
+            entry.dosage = entry.dosage || 'As prescribed';
+            entry.prescribedBy = entry.prescribedBy || 'Healthcare Provider';
+            if (!entry.startDate) entry.startDate = new Date();
+            changed = true;
+          }
+        }
+      }
+
+      // Mark meds that are not in profile as completed (past)
+      for (const entry of medicalHistory.medications) {
+        if (!profileMedNames.has(entry.name)) {
+          if (entry.status !== 'completed' && entry.status !== 'discontinued') {
+            entry.status = 'completed';
+            if (!entry.endDate) entry.endDate = new Date();
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        medicalHistory.lastUpdatedBy = req.user.sub;
+        medicalHistory.lastUpdatedAt = new Date();
+        await medicalHistory.save();
+      }
+    } catch (syncErr) {
+      console.error('MedicalHistory GET sync medications error:', syncErr);
+      // Non-fatal for response
+    }
+
     // Populate user info for responses
     await medicalHistory.populate('lastUpdatedBy', 'firstName lastName');
 
@@ -73,6 +131,7 @@ router.get('/patient/:userId', auth(['patient', 'doctor', 'admin']), async (req,
         bloodType: medicalHistory.bloodType,
         allergies: medicalHistory.allergies,
         chronicConditions: medicalHistory.chronicConditions,
+        prescriptions: medicalHistory.prescriptions,
         familyConditions: medicalHistory.familyConditions,
         vitalSigns: medicalHistory.vitalSigns,
         labResults: medicalHistory.labResults,
@@ -198,13 +257,42 @@ router.post('/patient/:userId/:recordType', auth(['doctor', 'admin']), async (re
       });
     }
 
+    // Validate minimal required fields for prescriptions
+    if (recordType === 'prescriptions') {
+      if (!req.body.medicationName || !req.body.dosage) {
+        return res.status(400).json({ message: 'medicationName and dosage are required' });
+      }
+    }
+
     // Add the new record
+    const doctorName = [req.user?.firstName, req.user?.lastName].filter(Boolean).join(' ') || req.user?.name || 'Doctor';
+    const now = new Date();
     const newRecord = {
       ...req.body,
       ...(recordType === 'vitalSigns' && req.body.weight && req.body.height && {
         bmi: req.body.weight / Math.pow(req.body.height / 100, 2)
+      }),
+      ...(recordType === 'medications' && {
+        startDate: req.body.startDate ? new Date(req.body.startDate) : now,
+        status: req.body.status || 'active',
+        prescribedBy: req.body.prescribedBy || doctorName
+      }),
+      ...(recordType === 'prescriptions' && {
+        prescriptionId: req.body.prescriptionId || `RX-${now.getTime()}`,
+        medicationName: req.body.medicationName,
+        dosage: req.body.dosage || 'As prescribed',
+        prescribedBy: req.body.prescribedBy || doctorName,
+        prescribedDate: req.body.prescribedDate ? new Date(req.body.prescribedDate) : now,
+        startDate: req.body.startDate ? new Date(req.body.startDate) : now,
+        status: req.body.status || 'prescribed',
+        refills: typeof req.body.refills === 'number' ? req.body.refills : (req.body.refills ? Number(req.body.refills) : 0),
+        refillsUsed: typeof req.body.refillsUsed === 'number' ? req.body.refillsUsed : 0
       })
     };
+
+    // Defensive: ensure arrays are initialized
+    if (!medicalHistory.prescriptions) medicalHistory.prescriptions = [];
+    if (!medicalHistory.medications) medicalHistory.medications = [];
 
     medicalHistory[recordType].push(newRecord);
     medicalHistory.lastUpdatedBy = req.user.sub;
@@ -218,7 +306,7 @@ router.post('/patient/:userId/:recordType', auth(['doctor', 'admin']), async (re
     });
   } catch (error) {
     console.error('Add medical record error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error?.message || 'Server error' });
   }
 });
 
@@ -297,20 +385,29 @@ router.delete('/patient/:userId/:recordType/:recordId', auth(['doctor', 'admin']
       return res.status(404).json({ message: 'Medical history not found' });
     }
 
-    // Find and remove the specific record
+    // Find the specific record
     const record = medicalHistory[recordType].id(recordId);
     if (!record) {
       return res.status(404).json({ message: 'Record not found' });
     }
 
-    record.remove();
+    if (recordType === 'medications') {
+      // Soft-complete medication instead of hard delete
+      record.status = 'completed';
+      record.endDate = new Date();
+    } else {
+      // Hard delete for other record types
+      record.remove();
+    }
     medicalHistory.lastUpdatedBy = req.user.sub;
     medicalHistory.lastUpdatedAt = new Date();
 
     await medicalHistory.save();
 
     res.json({
-      message: `${recordType} record deleted successfully`
+      message: recordType === 'medications' 
+        ? 'Medication marked as completed successfully' 
+        : `${recordType} record deleted successfully`
     });
   } catch (error) {
     console.error('Delete medical record error:', error);
