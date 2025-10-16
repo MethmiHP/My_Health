@@ -1,6 +1,4 @@
 
-
-
 // src/pages/dashboards/doctorDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { API_BASE, useAuthHeaders, getJSON, putJSON, postJSON } from '../../utils/api';

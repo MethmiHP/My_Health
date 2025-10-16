@@ -101,8 +101,9 @@ exports.updatePatient = async (req, res) => {
       typeof val === 'string' ? val.split(',').map(s => s.trim()).filter(Boolean) :
       undefined;
 
-    // --- Merge Surgeries (append-only new entries) ---
-    let mergedSurgeries;
+  // --- Merge Surgeries (append-only new entries) ---
+  let mergedSurgeries;
+  let newProceduresForHistory = [];
     if (Array.isArray(surgeries)) {
       // Only accept entries without _id and with a non-empty name
       const incomingRaw = surgeries.filter(s => s && !s._id && s.name && String(s.name).trim());
@@ -118,10 +119,22 @@ exports.updatePatient = async (req, res) => {
         followUpDate: s.followUpDate ? new Date(s.followUpDate) : undefined,
       }));
 
-      const keyOf = (s) => `${(s.name||'').trim().toLowerCase()}|${s.date ? new Date(s.date).toISOString().slice(0,10) : ''}|${(s.hospital||'').trim().toLowerCase()}|${(s.surgeon||'').trim().toLowerCase()}`;
-      const existingKeys = new Set((existing.surgeries || []).map(keyOf));
-      const onlyNew = incoming.filter(s => !existingKeys.has(keyOf(s)));
-      mergedSurgeries = [ ...(existing.surgeries || []), ...onlyNew ];
+    const keyOf = (s) => `${(s.name||'').trim().toLowerCase()}|${s.date ? new Date(s.date).toISOString().slice(0,10) : ''}|${(s.hospital||'').trim().toLowerCase()}|${(s.surgeon||'').trim().toLowerCase()}`;
+    const existingKeys = new Set((existing.surgeries || []).map(keyOf));
+    const onlyNew = incoming.filter(s => !existingKeys.has(keyOf(s)));
+    mergedSurgeries = [ ...(existing.surgeries || []), ...onlyNew ];
+
+    // Prepare medical history procedures from newly added items (surgery/scan/procedure)
+    newProceduresForHistory = onlyNew
+      .filter(s => ['procedure','scan','surgery','treatment'].includes((s.type || 'surgery')))
+      .map(s => ({
+        type: s.type || 'surgery',
+        procedureName: s.name,
+        procedureDate: s.date || new Date(),
+        performedBy: s.surgeon,
+        location: s.hospital,
+        notes: s.description || s.results,
+      }));
     }
 
     const updateData = {
@@ -159,7 +172,30 @@ exports.updatePatient = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('userId', 'firstName lastName email phone userStatus');
 
-    res.json({ message: 'Patient updated successfully', patient: updated });
+  res.json({ message: 'Patient updated successfully', patient: updated });
+
+  // --- Also append new procedures to MedicalHistory.procedures so they show up in patient history ---
+  try {
+    if (newProceduresForHistory.length > 0) {
+      const userIdForHistory = updated.userId?._id || updated.user?._id || updated.userId;
+      let history = await MedicalHistory.findOne({ userId: userIdForHistory, hospitalId });
+      if (!history) {
+        history = new MedicalHistory({ patientId: updated._id, userId: userIdForHistory, hospitalId });
+      }
+      history.procedures = history.procedures || [];
+      const procKey = (p) => `${(p.procedureName||'').toLowerCase()}|${p.procedureDate ? new Date(p.procedureDate).toISOString().slice(0,10) : ''}`;
+      const existingProcKeys = new Set(history.procedures.map(procKey));
+      const toAppend = newProceduresForHistory.filter(p => !existingProcKeys.has(procKey(p)));
+      if (toAppend.length > 0) {
+        history.procedures.push(...toAppend);
+        history.lastUpdatedBy = req.user.sub;
+        history.lastUpdatedAt = new Date();
+        await history.save();
+      }
+    }
+  } catch (mhErr) {
+    console.error('Sync MedicalHistory procedures error:', mhErr);
+  }
   } catch (error) {
     console.error('Update patient error:', error);
     res.status(500).json({ message: 'Server error' });

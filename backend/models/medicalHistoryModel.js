@@ -1,7 +1,4 @@
 
-
-
-
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
@@ -60,6 +57,8 @@ const DiagnosisSchema = new Schema({
 
 // Sub-schema for procedures
 const ProcedureSchema = new Schema({
+  // Distinguish between surgery, imaging/scan, generic procedure, treatment
+  type: { type: String, enum: ['surgery', 'scan', 'procedure', 'treatment'], default: 'surgery' },
   procedureName: { type: String, required: true, trim: true },
   procedureDate: { type: Date, required: true },
   performedBy: { type: String, trim: true }, // Doctor name
