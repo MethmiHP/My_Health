@@ -22,7 +22,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
     medications: true,
     diagnoses: false,
     labResults: false,
-    procedures: false,
+    procedures: true,
     immunizations: false,
     familyHistory: false
   });
@@ -207,50 +207,58 @@ export default function MedicalHistory({ medicalHistory, loading }) {
         )}
       </div>
 
-      {/* Diagnoses
+
+      {/* Procedures (surgeries, scans, procedures) */}
       <div className="mb-6">
         <button
-          onClick={() => toggleSection('diagnoses')}
+          onClick={() => toggleSection('procedures')}
           className="flex items-center justify-between w-full text-left mb-3"
         >
           <h3 className="text-lg font-semibold text-teal-900 flex items-center gap-2">
             <Stethoscope className="h-5 w-5" />
-            Diagnoses ({medicalHistory.diagnoses?.length || 0})
+            Procedures ({medicalHistory.procedures?.length || 0})
           </h3>
-          {expandedSections.diagnoses ? (
+          {expandedSections.procedures ? (
             <ChevronDown className="h-5 w-5 text-gray-400" />
           ) : (
             <ChevronRight className="h-5 w-5 text-gray-400" />
           )}
         </button>
-        
-        {expandedSections.diagnoses && (
+
+        {expandedSections.procedures && (
           <div className="space-y-3">
-            {medicalHistory.diagnoses && medicalHistory.diagnoses.length > 0 ? (
-              medicalHistory.diagnoses.map((diagnosis, index) => (
+            {medicalHistory.procedures && medicalHistory.procedures.length > 0 ? (
+              medicalHistory.procedures.map((proc, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h4 className="font-medium text-gray-900">{diagnosis.condition}</h4>
-                      {diagnosis.icdCode && <p className="text-sm text-gray-500">ICD: {diagnosis.icdCode}</p>}
+                      <h4 className="font-medium text-gray-900">{proc.procedureName}</h4>
+                      {proc.type && (
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full ml-2 ${
+                          proc.type === 'surgery' ? 'bg-red-100 text-red-700' :
+                          proc.type === 'scan' ? 'bg-blue-100 text-blue-700' :
+                          proc.type === 'treatment' ? 'bg-purple-100 text-purple-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {proc.type.charAt(0).toUpperCase() + proc.type.slice(1)}
+                        </span>
+                      )}
+                      {proc.location && <p className="text-sm text-gray-600">Location: {proc.location}</p>}
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(diagnosis.status)}`}>
-                      {diagnosis.status}
-                    </span>
                   </div>
                   <div className="text-sm text-gray-500">
-                    <p>Diagnosed: {formatDate(diagnosis.diagnosisDate)}</p>
-                    {diagnosis.diagnosedBy && <p>By: {diagnosis.diagnosedBy}</p>}
-                    {diagnosis.notes && <p>Notes: {diagnosis.notes}</p>}
+                    {proc.procedureDate && <p>Date: {formatDate(proc.procedureDate)}</p>}
+                    {proc.performedBy && <p>Performed by: {proc.performedBy}</p>}
+                    {proc.notes && <p>Notes: {proc.notes}</p>}
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">No diagnoses recorded</p>
+              <p className="text-gray-500 text-sm">No procedures recorded</p>
             )}
           </div>
         )}
-      </div> */}
+      </div>
 
       {/* Prescriptions */}
       <div className="mb-6">
@@ -349,134 +357,7 @@ export default function MedicalHistory({ medicalHistory, loading }) {
         )}
       </div>
 
-      {/* Lab Results
-      <div className="mb-6">
-        <button
-          onClick={() => toggleSection('labResults')}
-          className="flex items-center justify-between w-full text-left mb-3"
-        >
-          <h3 className="text-lg font-semibold text-teal-900 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Lab Results ({medicalHistory.labResults?.length || 0})
-          </h3>
-          {expandedSections.labResults ? (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-gray-400" />
-          )}
-        </button>
-        
-        {expandedSections.labResults && (
-          <div className="space-y-3">
-            {medicalHistory.labResults && medicalHistory.labResults.length > 0 ? (
-              medicalHistory.labResults.map((lab, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{lab.testName}</h4>
-                      <p className="text-sm text-gray-600">Date: {formatDate(lab.testDate)}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lab.status)}`}>
-                      {lab.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    <p>Result: {lab.results}</p>
-                    {lab.normalRange && <p>Normal Range: {lab.normalRange}</p>}
-                    {lab.notes && <p>Notes: {lab.notes}</p>}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">No lab results recorded</p>
-            )}
-          </div>
-        )}
-      </div> */}
-
-      {/* Immunizations
-      <div className="mb-6">
-        <button
-          onClick={() => toggleSection('immunizations')}
-          className="flex items-center justify-between w-full text-left mb-3"
-        >
-          <h3 className="text-lg font-semibold text-teal-900 flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Immunizations ({medicalHistory.immunizations?.length || 0})
-          </h3>
-          {expandedSections.immunizations ? (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-gray-400" />
-          )}
-        </button>
-        
-        {expandedSections.immunizations && (
-          <div className="space-y-3">
-            {medicalHistory.immunizations && medicalHistory.immunizations.length > 0 ? (
-              medicalHistory.immunizations.map((immunization, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{immunization.vaccineName}</h4>
-                      <p className="text-sm text-gray-600">Date: {formatDate(immunization.vaccinationDate)}</p>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {immunization.administeredBy && <p>Administered by: {immunization.administeredBy}</p>}
-                    {immunization.location && <p>Location: {immunization.location}</p>}
-                    {immunization.nextDueDate && <p>Next due: {formatDate(immunization.nextDueDate)}</p>}
-                    {immunization.notes && <p>Notes: {immunization.notes}</p>}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">No immunizations recorded</p>
-            )}
-          </div>
-        )}
-      </div> */}
-
-      {/* Family History
-      <div className="mb-6">
-        <button
-          onClick={() => toggleSection('familyHistory')}
-          className="flex items-center justify-between w-full text-left mb-3"
-        >
-          <h3 className="text-lg font-semibold text-teal-900 flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Family History ({medicalHistory.familyHistory?.length || 0})
-          </h3>
-          {expandedSections.familyHistory ? (
-            <ChevronDown className="h-5 w-5 text-gray-400" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-gray-400" />
-          )}
-        </button>
-        
-        {expandedSections.familyHistory && (
-          <div className="space-y-3">
-            {medicalHistory.familyHistory && medicalHistory.familyHistory.length > 0 ? (
-              medicalHistory.familyHistory.map((family, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-medium text-gray-900">{family.condition}</h4>
-                      <p className="text-sm text-gray-600">Relation: {family.relation}</p>
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {family.ageOfOnset && <p>Age of onset: {family.ageOfOnset} years</p>}
-                    {family.notes && <p>Notes: {family.notes}</p>}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">No family history recorded</p>
-            )}
-          </div>
-        )}
-      </div> */}
+    
 
       {/* Last Updated */}
       {medicalHistory.lastUpdatedAt && (
