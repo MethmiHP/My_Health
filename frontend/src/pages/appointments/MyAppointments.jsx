@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { API_BASE, useAuthHeaders, getJSON, postJSON } from '../../utils/api';
 import { CalendarDays, X, Pencil, Check, XCircle } from 'lucide-react';
+import stethoscopeBg from '../../assets/steth.jpg';
 
 export default function MyAppointments() {
   const headers = useAuthHeaders();
@@ -79,6 +80,17 @@ export default function MyAppointments() {
   };
 
   return (
+    <div className="min-h-screen">
+    {/* Background Image - keep under navbar */}
+    <div 
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: `url(${stethoscopeBg})`,
+          opacity: 0.75,
+          zIndex: -1
+        }}
+        aria-hidden="true"
+      />
     <main className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-teal-900 flex items-center gap-2">
         <CalendarDays className="h-6 w-6 text-teal-700" /> My Appointments
@@ -172,5 +184,6 @@ export default function MyAppointments() {
         </div>
       )}
     </main>
+    </div>
   );
 }
