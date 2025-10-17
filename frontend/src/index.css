@@ -1,35 +1,4 @@
-/* @tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, sans-serif;
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
-  }
-  
-  .btn-secondary {
-    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2;
-  }
-  
-  .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
-  }
-  
-  .card {
-    @apply bg-white rounded-xl shadow-lg border border-gray-100;
-  }
-}
- */
-
- /* src/index.css */
+/* src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -46,3 +15,9 @@
 .animate-slide-left { animation: slideLeft 0.7s ease-out; }
 .animate-slide-right { animation: slideRight 0.7s ease-out; }
 .animate-scale-up { animation: scaleUp 0.7s ease-out; }
+
+/* Readability helpers for headings on image backgrounds */
+.heading-on-image { color: #ffffff; text-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.subheading-on-image { color: #f8fafc; text-shadow: 0 1px 4px rgba(0,0,0,.30); }
+.text-shadow-md { text-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.text-shadow-sm { text-shadow: 0 1px 3px rgba(0,0,0,.25); }

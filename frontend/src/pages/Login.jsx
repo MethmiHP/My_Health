@@ -70,13 +70,13 @@ const Login = () => {
         <div className="hidden lg:flex flex-col justify-center">
           <div className="flex items-center gap-3">
             {logo ? (
-              <img src={logo} alt="My Health" className="h-10 w-auto" />
+              <img src={logo} alt="My Health" className="h-16 w-auto" />
             ) : (
               <div className="h-10 w-10 rounded-xl bg-teal-600 flex items-center justify-center">
                 <Stethoscope className="h-6 w-6 text-white" />
               </div>
             )}
-            <span className="text-2xl font-semibold text-teal-800">My Health</span>
+            {/* <span className="text-2xl font-semibold text-teal-800">My Health</span> */}
           </div>
 
           <h1 className="mt-6 text-4xl font-extrabold text-teal-900 leading-tight">

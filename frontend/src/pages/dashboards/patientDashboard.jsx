@@ -24,6 +24,7 @@ import { getJSON, postJSON, putJSON, useAuthHeaders } from "../../utils/api";
 import BarcodeCard from "../../components/BarcodeCard";
 import MedicationAlert from "../../components/MedicationAlert";
 import MedicalHistory from "../../components/MedicalHistory";
+import stethoscopeBg from "../../assets/steth.jpg";
 
 export default function PatientDashboard() {
   const { user } = useAuth();
@@ -289,14 +290,22 @@ export default function PatientDashboard() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
+      {/* Background Image - positioned to not cover navbar */}
+      <div 
+        className="fixed top-16 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat opacity-75"
+        style={{ backgroundImage: `url(${stethoscopeBg})` }}
+        aria-hidden="true"
+      />
+      {/* Main content */}
+      <main className="relative z-10">
       {/* Header */}
-      <section className="bg-white border-b">
+      <section className="bg-white/95 backdrop-blur-sm border-b">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3">
             <Stethoscope className="h-8 w-8 text-teal-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Patient Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900 text-shadow-sm">Patient Dashboard</h1>
               <p className="text-gray-600">Manage your health records and appointments</p>
             </div>
           </div>
@@ -328,7 +337,7 @@ export default function PatientDashboard() {
 
       {/* Report Section */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-4">
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg border p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Report to Doctor</h2>
@@ -403,7 +412,7 @@ export default function PatientDashboard() {
 
       {/* Patient Profile Section */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg border p-6">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg border p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">My Profile</h2>
@@ -1140,7 +1149,7 @@ export default function PatientDashboard() {
             </div>
           </div>
         ) : (
-          <div className="bg-white border rounded-lg p-6">
+          <div className="bg-white/90 backdrop-blur-sm border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Patient Barcode</h3>
@@ -1220,7 +1229,7 @@ export default function PatientDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Link
             to="/appointments"
-            className="group border bg-white p-4 rounded-lg hover:shadow-md transition-shadow"
+            className="group border bg-white/90 backdrop-blur-sm p-4 rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3">
               <div className="bg-teal-50 p-2 rounded-md">
@@ -1235,7 +1244,7 @@ export default function PatientDashboard() {
 
           <Link
             to="/appointments/my"
-            className="group border bg-white p-4 rounded-lg hover:shadow-md transition-shadow"
+            className="group border bg-white/90 backdrop-blur-sm p-4 rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="flex items-center gap-3">
               <div className="bg-teal-50 p-2 rounded-md">
@@ -1248,48 +1257,12 @@ export default function PatientDashboard() {
             </div>
           </Link>
 
-          <div className="group border bg-white p-4 rounded-lg">
-            <div className="flex items-center gap-3">
-              <div className="bg-teal-50 p-2 rounded-md">
-                <QrCode className="h-5 w-5 text-teal-600" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-900">My Barcode</h3>
-                <p className="text-sm text-gray-600">QR code for hospital check-ins</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Optional placeholders */}
-          <div className="border bg-white p-4 rounded-lg opacity-60">
-            <div className="flex items-center gap-3">
-              <div className="bg-gray-50 p-2 rounded-md">
-                <FileText className="h-5 w-5 text-gray-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-500">Records (soon)</h3>
-                <p className="text-sm text-gray-400">Lab reports & prescriptions</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border bg-white p-4 rounded-lg opacity-60">
-            <div className="flex items-center gap-3">
-              <div className="bg-gray-50 p-2 rounded-md">
-                <CreditCard className="h-5 w-5 text-gray-400" />
-              </div>
-              <div>
-                <h3 className="font-medium text-gray-500">Billing (soon)</h3>
-                <p className="text-sm text-gray-400">Invoices & payments</p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
       {/* Patient Reports Section */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="bg-blue-50 p-2 rounded-md">
@@ -1392,6 +1365,7 @@ export default function PatientDashboard() {
           )}
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, FileText, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getJSON, useAuthHeaders } from '../utils/api';
+import stethoscopeBg from '../assets/steth.jpg';
 // Keep functionality the same; only structure/UX below changes
 
 export default function MedicalHistoryPage() {
@@ -145,7 +146,15 @@ export default function MedicalHistoryPage() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
+      {/* Background Image - positioned to not cover navbar */}
+      <div 
+        className="fixed top-16 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat opacity-75"
+        style={{ backgroundImage: `url(${stethoscopeBg})` }}
+        aria-hidden="true"
+      />
+      {/* Main content */}
+      <main className="relative z-10">
       {/* Header */}
       <section className="bg-white border-b">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6">
@@ -383,7 +392,8 @@ export default function MedicalHistoryPage() {
           }
         }
       `}</style>
-    </main>
+      </main>
+    </div>
   );
 }
 

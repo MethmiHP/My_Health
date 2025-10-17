@@ -1,23 +1,4 @@
-// const express = require("express");
-// const router = express.Router();
-// const auth = require("../middleware/authMiddleware");
-// const controller = require("../controllers/paymentController");
 
-// // ✅ GET: Calculate bill
-// router.get("/calculate/:nic", auth(["cashier"]), controller.calculateBill);
-
-// // ✅ POST: Make payment
-// router.post("/make", auth(["cashier"]), controller.makePayment);
-
-// // ✅ PUT: Refund / Void
-// router.put("/refund/:paymentId", auth(["cashier"]), controller.refundPayment);
-// router.put("/void/:paymentId", auth(["cashier"]), controller.voidPayment);
-
-// module.exports = router;
-
-// ============================================
-// 4. PAYMENT ROUTES (routes/payment.routes.js)
-// ============================================
 const express = require('express');
 const router = express.Router();
 const {

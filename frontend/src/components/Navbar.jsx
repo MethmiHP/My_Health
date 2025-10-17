@@ -85,7 +85,7 @@ const Navbar = () => {
           {/* Brand */}
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <img src={logo} alt="My Health Logo" className="h-14 w-auto" />
+              <img src={logo} alt="My Health Logo" className="h-16 w-auto" />
               {/* <span className="ml-3 text-lg font-semibold text-teal-700">My Health</span> */}
             </Link>
           </div>
@@ -118,40 +118,20 @@ const Navbar = () => {
               </Link>
             )}
 
-            <Link
-              to="/doctors"
-              className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Find Doctors
-            </Link>
+           
 
-            <Link
-              to="/hospitals"
-              className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Hospitals
-            </Link>
+          
 
             {user && (
               <>
                 <Link
-                  to="/appointments"
+                  to={user?.role === 'doctor' ? '/doctor/dashboard' : '/appointments'}
                   className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Appointments
                 </Link>
-                <Link
-                  to="/records"
-                  className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Records
-                </Link>
-                <Link
-                  to="/billing"
-                  className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Billing
-                </Link>
+               
+             
                 <Link
                   to={getRoleDashboard(user.role)}
                   className="text-gray-700 hover:text-teal-700 px-3 py-2 rounded-md text-sm font-medium transition-colors"
@@ -218,7 +198,7 @@ const Navbar = () => {
                   Login
                 </Link>
                 <Link
-                  to="/register"
+                  to="/onboard-hospital"
                   className="bg-teal-600 text-white hover:bg-teal-700 px-4 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Register
@@ -295,7 +275,7 @@ const Navbar = () => {
               {user && (
                 <>
                   <Link
-                    to="/appointments"
+                    to={user?.role === 'doctor' ? '/doctor/dashboard' : '/appointments'}
                     className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-teal-700 hover:bg-gray-50 rounded-md"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -373,7 +353,7 @@ const Navbar = () => {
                     Login
                   </Link>
                   <Link
-                    to="/register"
+                    to="/onboard-hospital"
                     className="block px-3 py-2 text-base font-medium bg-teal-600 text-white hover:bg-teal-700 rounded-md"
                     onClick={() => setIsMenuOpen(false)}
                   >

@@ -18,6 +18,7 @@ import {
   Building2,
   FileText,
 } from 'lucide-react';
+import hospitalBg from '../../assets/steth.jpg';
 import {
   LineChart,
   Line,
@@ -322,7 +323,15 @@ export default function ReportsDashboard() {
   const appointmentsByDayData = charts?.appointmentsByDay?.map((i) => ({ date: i._id || '', count: i.count || 0 })) || [];
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
+      {/* Background Image - positioned to not cover navbar */}
+      <div 
+        className="fixed top-16 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat opacity-75"
+        style={{ backgroundImage: `url(${hospitalBg})` }}
+        aria-hidden="true"
+      />
+      {/* Main content */}
+      <main className="relative z-10">
       <section className="bg-white border-b border-teal-100">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between flex-wrap gap-4">
@@ -548,6 +557,7 @@ export default function ReportsDashboard() {
           </div>
         )}
       </div>
-    </main>
+      </main>
+    </div>
   );
 }

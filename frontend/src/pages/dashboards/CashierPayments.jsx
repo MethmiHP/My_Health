@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import stethoscopeBg from '../../assets/steth.jpg';
 
 export default function CashierPayments() {
   const { user } = useAuth();
@@ -34,7 +35,15 @@ export default function CashierPayments() {
   };
 
   return (
-    <div className="p-8">
+    <div className="min-h-screen">
+      {/* Background Image - positioned to not cover navbar */}
+      <div 
+        className="fixed top-16 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat opacity-75"
+        style={{ backgroundImage: `url(${stethoscopeBg})` }}
+        aria-hidden="true"
+      />
+      {/* Main content */}
+      <div className="relative z-10 p-8">
       <h1 className="text-3xl font-bold mb-6">Manage Payments</h1>
 
       <input
@@ -85,6 +94,7 @@ export default function CashierPayments() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }
