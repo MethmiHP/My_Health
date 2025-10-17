@@ -13,14 +13,16 @@ exports.me = async (req, res) => {
     if (!id) return res.status(401).json({ message: 'Unauthorized' });
 
     // Base user (names + email likely live here)
-    const userDoc = await User.findById(id).lean().exec();
+    let userDoc = await User.findById(id);
+    if (userDoc && typeof userDoc.lean === 'function') userDoc = await userDoc.lean().exec();
     if (!userDoc) return res.status(404).json({ message: 'User not found' });
 
     // Optional extra patient fields (e.g., phone)
     let patientDoc = null;
     if (role === 'patient') {
       try {
-        patientDoc = await PatientProfile.findOne({ userId: id }).lean().exec();
+        patientDoc = await PatientProfile.findOne({ userId: id });
+        if (patientDoc && typeof patientDoc.lean === 'function') patientDoc = await patientDoc.lean().exec();
       } catch (_) {}
     }
 

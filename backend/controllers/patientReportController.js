@@ -132,14 +132,18 @@ exports.respondToReport = async (req, res) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const report = await PatientReport.findOneAndUpdate(
+    let report = await PatientReport.findOneAndUpdate(
       { _id: reportId, hospitalId },
       { status, doctorResponse: doctorResponse.trim(), respondedBy: req.user.sub, respondedAt: new Date() },
       { new: true }
-    )
-      .populate('userId', 'firstName lastName email')
-      .populate('patientId', 'barcode')
-      .populate('respondedBy', 'firstName lastName');
+    );
+    if (report && typeof report.populate === 'function') {
+      report = await report.populate([
+        { path: 'userId', select: 'firstName lastName email' },
+        { path: 'patientId', select: 'barcode' },
+        { path: 'respondedBy', select: 'firstName lastName' },
+      ]);
+    }
 
     if (!report) return res.status(404).json({ message: 'Report not found' });
 

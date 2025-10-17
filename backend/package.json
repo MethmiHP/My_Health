@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "start": "nodemon server.js",
     "dev": "nodemon server.js",
     "seed:users": "node scripts/seedUsers.js"
@@ -28,6 +28,11 @@
     "pdfkit": "^0.17.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "@babel/preset-env": "^7.28.3",
+    "babel-jest": "^30.2.0",
+    "jest": "^30.2.0",
+    "mongodb-memory-server": "^10.2.3",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
   }
 }

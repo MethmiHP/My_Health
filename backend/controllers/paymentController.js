@@ -17,10 +17,10 @@ exports.getPatientBillByNIC = async (req, res) => {
       return res.status(400).json({ message: 'Hospital context required' });
     }
 
-    const patient = await PatientProfile.findOne({
-      nic,
-      hospitalId
-    }).populate('userId', 'firstName lastName email phone');
+    let patient = await PatientProfile.findOne({ nic, hospitalId });
+    if (patient && typeof patient.populate === 'function') {
+      patient = await patient.populate('userId', 'firstName lastName email phone');
+    }
 
     if (!patient) {
       return res.status(404).json({ message: 'Patient not found with this NIC' });

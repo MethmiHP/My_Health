@@ -137,8 +137,8 @@ exports.updateMedicalHistory = async (req, res) => {
 exports.addMedicalRecord = async (req, res) => {
   try {
     const hospitalId = getHospitalId(req);
-    const { userId, recordType } = req.params;
-    const validTypes = ['prescriptions', 'labResults', 'medications', 'diagnoses', 'procedures', 'immunizations', 'familyHistory'];
+  const { userId, recordType } = req.params;
+  const validTypes = ['prescriptions', 'labResults', 'medications', 'diagnoses', 'procedures', 'immunizations', 'familyHistory', 'vitalSigns'];
     if (!validTypes.includes(recordType)) return res.status(400).json({ message: 'Invalid record type' });
 
     const patientProfile = await PatientProfile.findOne({ userId, hospitalId });

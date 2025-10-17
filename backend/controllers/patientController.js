@@ -25,8 +25,10 @@ exports.getPatientByUserId = async (req, res) => {
     const query = { userId: userIdObjectId };
     if (hospitalId) query.hospitalId = hospitalId;
 
-    const patient = await PatientProfile.findOne(query)
-      .populate('userId', 'firstName lastName email phone userStatus');
+    let patient = await PatientProfile.findOne(query);
+    if (patient && typeof patient.populate === 'function') {
+      patient = await patient.populate('userId', 'firstName lastName email phone userStatus');
+    }
 
     if (!patient) return res.status(404).json({ message: 'Patient profile not found' });
 
@@ -64,8 +66,10 @@ exports.getPatientById = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const patient = await PatientProfile.findOne({ _id: patientId, hospitalId })
-      .populate('userId', 'firstName lastName email phone userStatus');
+    let patient = await PatientProfile.findOne({ _id: patientId, hospitalId });
+    if (patient && typeof patient.populate === 'function') {
+      patient = await patient.populate('userId', 'firstName lastName email phone userStatus');
+    }
 
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
@@ -225,8 +229,10 @@ exports.getPatientByBarcode = async (req, res) => {
     const hospitalId = getHospitalId(req);
     const barcode = req.params.barcode;
 
-    const patient = await PatientProfile.findOne({ barcode, hospitalId })
-      .populate('userId', 'firstName lastName email phone userStatus');
+    let patient = await PatientProfile.findOne({ barcode, hospitalId });
+    if (patient && typeof patient.populate === 'function') {
+      patient = await patient.populate('userId', 'firstName lastName email phone userStatus');
+    }
 
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
