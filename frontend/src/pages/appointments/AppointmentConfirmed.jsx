@@ -2,6 +2,7 @@ import React from "react";
 import { useLocation, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { CheckCircle2, Calendar, Clock, User, Home, Mail, Phone } from "lucide-react";
 import FlowStepper from "../../components/FlowStepper";
+import stethoscopeBg from "../../assets/steth.jpg";
 
 export default function AppointmentConfirmed() {
   const navigate = useNavigate();
@@ -35,7 +36,14 @@ export default function AppointmentConfirmed() {
   const missingCore = !start || !end || !doctorName;
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-10">
+    <div className="min-h-screen">
+      {/* Background Image - keep under navbar */}
+      <div
+        className="fixed top-16 left-0 right-0 bottom-0 bg-cover bg-center bg-no-repeat opacity-75"
+        style={{ backgroundImage: `url(${stethoscopeBg})` }}
+        aria-hidden="true"
+      />
+      <main className="relative z-10 max-w-4xl mx-auto px-4 py-10">
       {/* Stepper */}
       <FlowStepper current={6} className="mb-6" />
 
@@ -48,7 +56,7 @@ export default function AppointmentConfirmed() {
         </button>
       </div>
 
-      <section className="max-w-2xl mx-auto rounded-2xl border border-teal-100 bg-white shadow-sm">
+      <section className="max-w-2xl mx-auto rounded-2xl border border-teal-100 bg-white/95 backdrop-blur-sm shadow-sm">
         <div className="p-6 md:p-8">
         <div className="flex items-center justify-center gap-3 text-center">
             <CheckCircle2 className="h-7 w-7 text-teal-600" />
@@ -142,6 +150,7 @@ export default function AppointmentConfirmed() {
           )}
         </div>
       </section>
-    </main>
+      </main>
+    </div>
   );
 }
